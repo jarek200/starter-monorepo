@@ -47,6 +47,9 @@ let name = $state('');
 let bio = $state('');
 
 onMount(async () => {
+  // Set auth loading to false once dashboard starts loading
+  // This ensures smooth transition from login
+  auth.setLoading(false);
   await loadProfile();
 });
 
@@ -213,7 +216,7 @@ async function handleLogout() {
                 id="bio"
                 bind:value={bio}
                 placeholder="Tell us about yourself..."
-                rows="4"
+                rows={4}
               />
             </div>
           </CardContent>

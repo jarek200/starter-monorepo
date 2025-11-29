@@ -1,13 +1,19 @@
 <script lang="ts">
-import type { Label as LabelPrimitive } from 'bits-ui';
-// biome-ignore lint/correctness/noUnusedImports: Used in template (line 10)
+import type { Label as LabelPrimitiveType } from 'bits-ui';
+import { Label } from 'bits-ui';
+// biome-ignore lint/correctness/noUnusedImports: Used in template
 import { cn } from '$lib/utils.js';
 
 // biome-ignore lint/correctness/noUnusedVariables: Used in template
-let { ref = $bindable(null), class: className, ...restProps }: LabelPrimitive.RootProps = $props();
+let {
+  ref = $bindable(null),
+  class: className,
+  children,
+  ...restProps
+}: LabelPrimitiveType.RootProps & { children?: import('svelte').Snippet } = $props();
 </script>
 
-<LabelPrimitive.Root
+<Label.Root
 	bind:ref
 	data-slot="label"
 	class={cn(
@@ -15,5 +21,7 @@ let { ref = $bindable(null), class: className, ...restProps }: LabelPrimitive.Ro
 		className
 	)}
 	{...restProps}
-/>
+>
+	{@render children?.()}
+</Label.Root>
 

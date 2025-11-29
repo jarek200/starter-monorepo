@@ -18,9 +18,10 @@ export const envSchema = z.object({
 
   // DynamoDB
   VITE_TABLE_NAME: z.string().optional(),
+  TABLE_NAME: z.string().optional(), // Server-side Lambda env var
 
-  // Stage
-  VITE_STAGE: z.enum(['dev', 'staging', 'production']).optional(),
+  // Stage - accepts any string to support custom SST stage names (feature branches, PR previews, etc.)
+  VITE_STAGE: z.string().optional(),
 
   // Node Environment
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -53,5 +54,33 @@ export function getEnv(): Partial<Env> {
     return envSchema.partial().parse(process.env);
   } catch {
     return {};
+  }
+}
+
+/**
+ * Lambda-specific environment schema
+ * Validates required environment variables for Lambda functions
+ */
+export const lambdaEnvSchema = z.object({
+  TABLE_NAME: z.string(),
+  AWS_REGION: z.string().default('us-east-1'),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
+});
+
+export type LambdaEnv = z.infer<typeof lambdaEnvSchema>;
+
+/**
+ * Validates Lambda function environment variables
+ * Throws an error if validation fails
+ */
+export function validateLambdaEnv(): LambdaEnv {
+  try {
+    return lambdaEnvSchema.parse(process.env);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const missing = error.errors.map((e) => e.path.join('.')).join(', ');
+      throw new Error(`Missing or invalid Lambda environment variables: ${missing}`);
+    }
+    throw error;
   }
 }

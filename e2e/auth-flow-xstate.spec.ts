@@ -109,8 +109,23 @@ test.describe('Authentication Flow with XState', () => {
       await page.waitForTimeout(2000);
 
       // Check if page has loaded properly (look for login form elements)
-      const hasLoginForm =
-        (await page.locator('input[type="email"], input[name="email"]').count()) > 0;
+      // Try multiple selectors to be more robust
+      const emailInput = page.locator(
+        'input[type="email"], input[name="email"], input[id="email"]'
+      );
+      const passwordInput = page.locator(
+        'input[type="password"], input[name="password"], input[id="password"]'
+      );
+
+      // Wait for at least one of the inputs to be visible
+      await Promise.race([
+        emailInput.first().waitFor({ state: 'visible', timeout: 10000 }),
+        passwordInput.first().waitFor({ state: 'visible', timeout: 10000 }),
+      ]).catch(() => {
+        // If inputs don't appear, check for errors
+      });
+
+      const hasLoginForm = (await emailInput.count()) > 0 || (await passwordInput.count()) > 0;
       const hasError = await page
         .locator('body')
         .textContent()
@@ -127,7 +142,12 @@ test.describe('Authentication Flow with XState', () => {
       }
 
       if (!hasLoginForm) {
-        throw new Error('Login form not found. Page may not have loaded correctly.');
+        const pageContent = (await page.textContent('body')) || '';
+        const screenshotPath = 'test-results/login-form-not-found.png';
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        throw new Error(
+          `Login form not found. Page may not have loaded correctly. Screenshot saved to ${screenshotPath}. Page content preview: ${pageContent.substring(0, 200)}`
+        );
       }
 
       await expect(page).toHaveURL(/.*login/, { timeout: 5000 });
@@ -144,9 +164,15 @@ test.describe('Authentication Flow with XState', () => {
         console.log('State transition check skipped, continuing...');
       }
 
-      // Fill in login form
-      await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-      await page.fill('input[type="password"], input[name="password"]', TEST_PASSWORD);
+      // Fill in login form (use more specific selectors)
+      await page
+        .locator('input[type="email"], input[name="email"], input[id="email"]')
+        .first()
+        .fill(TEST_EMAIL);
+      await page
+        .locator('input[type="password"], input[name="password"], input[id="password"]')
+        .first()
+        .fill(TEST_PASSWORD);
 
       // Event: SUBMIT_LOGIN
       actor.send({ type: 'SUBMIT_LOGIN' });
@@ -330,16 +356,17 @@ test.describe('Authentication Flow with XState', () => {
       await expect(page).toHaveURL(/.*login/);
 
       // Wait for the "Back to Home" button to be visible
-      await page.waitForSelector('button:has-text("Back to Home")', { timeout: 5000 });
+      // Try multiple selectors to be more robust
+      const backButton = page.locator(
+        'button:has-text("Back to Home"), button[aria-label*="Return to landing"], a:has-text("Back to Home")'
+      );
+      await backButton.first().waitFor({ state: 'visible', timeout: 10000 });
 
       // Click return to landing button
       actor.send({ type: 'RETURN_TO_LANDING' });
 
       // Click and wait for navigation back to landing page
-      await Promise.all([
-        page.waitForURL('/', { timeout: 5000 }),
-        page.click('button:has-text("Back to Home")'),
-      ]);
+      await Promise.all([page.waitForURL('/', { timeout: 10000 }), backButton.click()]);
 
       // Wait for page to fully load
       await page.waitForLoadState('networkidle');

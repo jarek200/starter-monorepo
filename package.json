@@ -19,7 +19,7 @@
     "lint": "pnpm -r exec -- biome check .",
     "lint:fix": "pnpm -r exec -- biome check . --write",
     "format": "pnpm -r exec -- biome format . --write",
-    "typecheck": "pnpm --filter './packages/*' exec -- tsc --noEmit",
+    "typecheck": "pnpm --filter './packages/*' exec -- tsc --noEmit && pnpm --filter web check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

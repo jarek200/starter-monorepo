@@ -7,16 +7,15 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { validateLambdaEnv } from '@sst-monorepo/core/env';
 import type { PostConfirmationTriggerHandler } from 'aws-lambda';
+
+// Validate environment variables at module load time
+const env = validateLambdaEnv();
+const TABLE_NAME = env.TABLE_NAME;
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
-const TABLE_NAME = process.env.TABLE_NAME;
-
-if (!TABLE_NAME) {
-  throw new Error('TABLE_NAME environment variable is required');
-}
 
 export const handler: PostConfirmationTriggerHandler = async (event) => {
   console.log('CreateUserProfile handler invoked', {

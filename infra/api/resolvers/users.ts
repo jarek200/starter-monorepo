@@ -1,12 +1,12 @@
 /// <reference path="../../../.sst/platform/config.d.ts" />
 
 export function addUserResolvers(
-  api: ReturnType<typeof import("../api-setup").createApi>,
-  dynamoDataSource: ReturnType<typeof import("../api-setup").createDataSource>,
+  api: ReturnType<typeof import('../api-setup').createApi>,
+  dynamoDataSource: ReturnType<typeof import('../api-setup').createDataSource>,
   tableName: any
 ) {
   // Query: getMyProfile - Get current user's profile
-  api.addResolver("Query getMyProfile", {
+  api.addResolver('Query getMyProfile', {
     dataSource: dynamoDataSource.name,
     code: `
       import { util } from '@aws-appsync/utils';
@@ -49,7 +49,7 @@ export function addUserResolvers(
   });
 
   // Mutation: updateUserProfile - Update current user's profile
-  api.addResolver("Mutation updateUserProfile", {
+  api.addResolver('Mutation updateUserProfile', {
     dataSource: dynamoDataSource.name,
     code: `
       import { util } from '@aws-appsync/utils';
@@ -98,23 +98,35 @@ export function addUserResolvers(
             expression: 'SET ' + updateExpression.join(', '),
             expressionNames: expressionNames,
             expressionValues: util.dynamodb.toMapValues(expressionValues)
-          }
+          },
+          returnValues: 'ALL_NEW'
         };
       }
       
       export function response(ctx) {
         if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
         
-        const userId = ctx.identity.sub;
+        if (!ctx.result) return util.error('User profile not found', 'NotFound');
         
-        // Fetch updated profile
-        return {
-          operation: 'GetItem',
-          key: util.dynamodb.toMapValues({
-            PK: \`USER#\${userId}\`,
-            SK: 'PROFILE'
-          })
-        };
+        const userId = ctx.identity.sub;
+        const profile = ctx.result;
+        
+        // Ensure userId is set
+        if (!profile.userId) {
+          profile.userId = userId;
+        }
+        
+        // Ensure username is set
+        if (!profile.username) {
+          const email = profile.email || ctx.identity.claims?.['cognito:username'] || ctx.identity.claims?.email || '';
+          if (email && email.includes('@')) {
+            profile.username = email.split('@')[0];
+          } else {
+            profile.username = 'user';
+          }
+        }
+        
+        return profile;
       }
     `,
   });

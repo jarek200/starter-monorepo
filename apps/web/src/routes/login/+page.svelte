@@ -89,11 +89,15 @@ async function handleSubmit() {
             // Use email prefix as fallback
           }
 
-          auth.setUser({
-            id: user.userId,
-            username: username,
-            email: email,
-          });
+          // Set user but keep loading state active to prevent flash during navigation
+          auth.setUser(
+            {
+              id: user.userId,
+              username: username,
+              email: email,
+            },
+            true
+          ); // Keep loading state active
 
           await tick();
           const redirect = page.url.searchParams.get('redirect') || '/dashboard';
@@ -134,11 +138,15 @@ async function handleSubmit() {
           // Use email prefix as fallback
         }
 
-        auth.setUser({
-          id: user.userId,
-          username: username,
-          email: email,
-        });
+        // Set user but keep loading state active to prevent flash during navigation
+        auth.setUser(
+          {
+            id: user.userId,
+            username: username,
+            email: email,
+          },
+          true
+        ); // Keep loading state active
 
         await tick();
         const redirect = page.url.searchParams.get('redirect') || '/dashboard';
@@ -187,11 +195,15 @@ async function handleSubmit() {
             // Use email prefix as fallback
           }
 
-          auth.setUser({
-            id: user.userId,
-            username: username,
-            email: email,
-          });
+          // Set user but keep loading state active to prevent flash during navigation
+          auth.setUser(
+            {
+              id: user.userId,
+              username: username,
+              email: email,
+            },
+            true
+          ); // Keep loading state active
 
           await tick();
           const redirect = page.url.searchParams.get('redirect') || '/dashboard';
