@@ -25,6 +25,7 @@ build
 # SST
 .sst
 .sst/platform
+**/sst-env.d.ts
 
 # Logs
 logs

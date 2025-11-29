@@ -15,7 +15,7 @@ import {
 import { tick } from 'svelte';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
-import { page } from '$app/state';
+import { page as pageStore } from '$app/stores';
 import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
 import { Button } from '$lib/components/ui/button/index.js';
 import {
@@ -49,10 +49,10 @@ $effect(() => {
       const session = await fetchAuthSession();
 
       if (user && session.tokens) {
-        const redirect = page.url.searchParams.get('redirect') || '/dashboard';
+        const redirect = $pageStore.url.searchParams.get('redirect') || '/dashboard';
         goto(redirect, { replaceState: true });
       }
-    } catch (error) {
+    } catch {
       // Not logged in, stay on login page
     }
   })();
@@ -85,7 +85,7 @@ async function handleSubmit() {
             if (profile?.username) {
               username = profile.username;
             }
-          } catch (error) {
+          } catch {
             // Use email prefix as fallback
           }
 
@@ -100,11 +100,11 @@ async function handleSubmit() {
           ); // Keep loading state active
 
           await tick();
-          const redirect = page.url.searchParams.get('redirect') || '/dashboard';
+          const redirect = $pageStore.url.searchParams.get('redirect') || '/dashboard';
           goto(redirect, { replaceState: true });
           return;
         }
-      } catch (signInError) {
+      } catch {
         // If auto sign-in fails, just show login form
         console.log('Auto sign-in after confirmation failed, showing login form');
       }
@@ -116,7 +116,7 @@ async function handleSubmit() {
     } else if (isLogin) {
       try {
         await signOut({ global: true });
-      } catch (signOutError) {
+      } catch {
         // Ignore
       }
 
@@ -134,7 +134,7 @@ async function handleSubmit() {
           if (profile?.username) {
             username = profile.username;
           }
-        } catch (error) {
+        } catch {
           // Use email prefix as fallback
         }
 
@@ -149,7 +149,7 @@ async function handleSubmit() {
         ); // Keep loading state active
 
         await tick();
-        const redirect = page.url.searchParams.get('redirect') || '/dashboard';
+        const redirect = $pageStore.url.searchParams.get('redirect') || '/dashboard';
         goto(redirect, { replaceState: true });
       }
     } else {
@@ -165,7 +165,7 @@ async function handleSubmit() {
         return;
       }
 
-      const { nextStep, userId } = await signUp({
+      const { nextStep } = await signUp({
         username: email,
         password: password,
         options: {
@@ -191,7 +191,7 @@ async function handleSubmit() {
             if (profile?.username) {
               username = profile.username;
             }
-          } catch (error) {
+          } catch {
             // Use email prefix as fallback
           }
 
@@ -206,9 +206,9 @@ async function handleSubmit() {
           ); // Keep loading state active
 
           await tick();
-          const redirect = page.url.searchParams.get('redirect') || '/dashboard';
+          const redirect = $pageStore.url.searchParams.get('redirect') || '/dashboard';
           goto(redirect, { replaceState: true });
-        } catch (error) {
+        } catch {
           // If auto sign-in failed, show login form
           isLogin = true;
           error = 'Account created! Please sign in.';
@@ -217,11 +217,13 @@ async function handleSubmit() {
         isLogin = true;
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Auth error:', err);
 
-    if (err.name === 'NotAuthorizedException') {
-      if (err.message?.includes('CONFIRMED')) {
+    const authError = err as { name?: string; message?: string };
+
+    if (authError.name === 'NotAuthorizedException') {
+      if (authError.message?.includes('CONFIRMED')) {
         // User is already confirmed, try to sign them in instead
         error = 'Account already confirmed. Please sign in.';
         needsConfirmation = false;
@@ -229,20 +231,20 @@ async function handleSubmit() {
       } else {
         error = 'Incorrect email or password';
       }
-    } else if (err.name === 'UserNotFoundException') {
+    } else if (authError.name === 'UserNotFoundException') {
       error = 'User not found';
-    } else if (err.name === 'UsernameExistsException') {
+    } else if (authError.name === 'UsernameExistsException') {
       error = 'An account with this email already exists. Please sign in instead.';
       isLogin = true;
-    } else if (err.name === 'InvalidPasswordException') {
+    } else if (authError.name === 'InvalidPasswordException') {
       error = 'Password does not meet requirements';
-    } else if (err.name === 'CodeMismatchException') {
+    } else if (authError.name === 'CodeMismatchException') {
       error = 'Invalid verification code';
-    } else if (err.name === 'AliasExistsException') {
+    } else if (authError.name === 'AliasExistsException') {
       error = 'An account with this email already exists. Please sign in instead.';
       isLogin = true;
     } else {
-      error = err.message || (isLogin ? 'Login failed' : 'Signup failed');
+      error = authError.message || (isLogin ? 'Login failed' : 'Signup failed');
     }
   } finally {
     loading = false;

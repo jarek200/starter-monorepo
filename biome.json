@@ -48,7 +48,16 @@
         "rules": {
           "style": {
             "useConst": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "off",
+            "noUnusedImports": "off"
           }
+        }
+      },
+      "javascript": {
+        "parser": {
+          "unsafeParameterDecoratorsEnabled": true
         }
       }
     }
