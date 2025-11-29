@@ -37,6 +37,18 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["*.svelte"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useConst": "off"
+          }
+        }
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "single",
