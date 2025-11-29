@@ -1,4 +1,6 @@
 {
-  "*.{js,jsx,ts,tsx,svelte}": ["pnpm --filter web exec biome check --write"],
-  "*.{json,md,yml,yaml}": ["pnpm --filter web exec biome format --write"]
+  "apps/web/**/*.{js,jsx,ts,tsx,svelte}": ["pnpm --filter web exec biome check --write"],
+  "apps/web/**/*.json": ["pnpm --filter web exec biome format --write"],
+  "packages/**/*.{js,jsx,ts,tsx}": ["pnpm exec biome check --write"],
+  "*.json": ["pnpm exec biome format --write"]
 }
