@@ -23,7 +23,8 @@
     "indentStyle": "space",
     "indentWidth": 2,
     "lineEnding": "lf",
-    "lineWidth": 100
+    "lineWidth": 100,
+    "useEditorconfig": true
   },
   "linter": {
     "enabled": true,
@@ -58,6 +59,17 @@
       "javascript": {
         "parser": {
           "unsafeParameterDecoratorsEnabled": true
+        }
+      }
+    },
+    {
+      "includes": ["**/*.css"],
+      "formatter": {
+        "enabled": true
+      },
+      "css": {
+        "parser": {
+          "tailwindDirectives": true
         }
       }
     }

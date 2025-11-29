@@ -5,3 +5,4 @@
 *.svelte text
 *.svelte -diff
 *.svelte merge=ours
+

@@ -7,9 +7,9 @@ let isConfigured = false;
 // Export function to ensure Amplify is initialized
 export async function ensureAmplifyConfigured(): Promise<void> {
   if (isConfigured) return;
-  
+
   if (amplifyInitPromise) return amplifyInitPromise;
-  
+
   amplifyInitPromise = initializeAmplify();
   await amplifyInitPromise;
 }
@@ -65,7 +65,7 @@ async function initializeAmplify(): Promise<void> {
 
 // Auto-initialize on import
 if (typeof window !== 'undefined') {
-  initializeAmplify().catch(err => {
+  initializeAmplify().catch((err) => {
     console.error('[Amplify] Auto-initialization failed:', err);
   });
 }

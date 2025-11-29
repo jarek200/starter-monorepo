@@ -65,3 +65,4 @@ echo "5. Deploy infrastructure: pnpm dev"
 echo "6. Run tests: pnpm test:e2e"
 echo ""
 echo "Happy coding! 🎉"
+

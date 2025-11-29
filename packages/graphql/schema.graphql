@@ -22,7 +22,3 @@ type Query {
 type Mutation {
   updateUserProfile(input: UpdateUserInput!): User
 }
-
-
-
-

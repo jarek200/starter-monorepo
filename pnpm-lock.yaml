@@ -24,6 +24,9 @@ importers:
       '@aws-amplify/auth':
         specifier: ^6.15.7
         version: 6.17.0(@aws-amplify/core@6.14.0)
+      '@biomejs/biome':
+        specifier: ^2.3.0
+        version: 2.3.8
       '@playwright/test':
         specifier: ^1.48.2
         version: 1.57.0
