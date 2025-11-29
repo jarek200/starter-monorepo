@@ -38,7 +38,7 @@ $effect(() => {
 const user = $derived(authState.user);
 
 let profile = $state<any>(null);
-let loading = $state(false);
+let loading = $state(true); // Start with loading true to prevent flash
 let saving = $state(false);
 let error = $state('');
 let success = $state('');
