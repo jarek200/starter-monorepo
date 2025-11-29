@@ -4,65 +4,65 @@
 </svelte:head>
 
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { page } from '$app/state';
-  import { browser } from '$app/environment';
-  import { tick } from 'svelte';
-  import Button from '$lib/components/ui/button.svelte';
-  import Input from '$lib/components/ui/input.svelte';
-  import Card from '$lib/components/ui/card.svelte';
-  import { auth } from '$lib/stores/auth';
-  import { signIn, signUp, confirmSignUp, getCurrentUser, fetchAuthSession, signOut } from 'aws-amplify/auth';
-  import { getMyProfile } from '$lib/services/graphql';
+import {
+  confirmSignUp,
+  fetchAuthSession,
+  getCurrentUser,
+  signIn,
+  signOut,
+  signUp,
+} from 'aws-amplify/auth';
+import { tick } from 'svelte';
+import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import Button from '$lib/components/ui/button.svelte';
+import Card from '$lib/components/ui/card.svelte';
+import Input from '$lib/components/ui/input.svelte';
+import { getMyProfile } from '$lib/services/graphql';
+import { auth } from '$lib/stores/auth';
 
-  let email = $state('');
-  let password = $state('');
-  let confirmPassword = $state('');
-  let confirmationCode = $state('');
-  let loading = $state(false);
-  let error = $state('');
-  let isLogin = $state(true);
-  let needsConfirmation = $state(false);
+const email = $state('');
+const password = $state('');
+const confirmPassword = $state('');
+let confirmationCode = $state('');
+let loading = $state(false);
+let error = $state('');
+let isLogin = $state(true);
+let needsConfirmation = $state(false);
 
-  $effect(() => {
-    if (!browser) return;
-    
-    (async () => {
-      try {
-        await import('$lib/amplify');
-        const user = await getCurrentUser();
-        const session = await fetchAuthSession();
+$effect(() => {
+  if (!browser) return;
 
-        if (user && session.tokens) {
-          const redirect = page.url.searchParams.get('redirect') || '/dashboard';
-          goto(redirect, { replaceState: true });
-        }
-      } catch (error) {
-        // Not logged in, stay on login page
-      }
-    })();
-  });
-
-  async function handleSubmit() {
-    loading = true;
-    error = '';
-
+  (async () => {
     try {
-      if (needsConfirmation) {
-        await confirmSignUp({
-          username: email,
-          confirmationCode: confirmationCode,
-        });
-        needsConfirmation = false;
-        isLogin = true;
-        confirmationCode = '';
-      } else if (isLogin) {
-        try {
-          await signOut({ global: true });
-        } catch (signOutError) {
-          // Ignore
-        }
+      await import('$lib/amplify');
+      const user = await getCurrentUser();
+      const session = await fetchAuthSession();
 
+      if (user && session.tokens) {
+        const redirect = page.url.searchParams.get('redirect') || '/dashboard';
+        goto(redirect, { replaceState: true });
+      }
+    } catch (error) {
+      // Not logged in, stay on login page
+    }
+  })();
+});
+
+async function handleSubmit() {
+  loading = true;
+  error = '';
+
+  try {
+    if (needsConfirmation) {
+      await confirmSignUp({
+        username: email,
+        confirmationCode: confirmationCode,
+      });
+
+      // After confirmation, try to sign in automatically
+      try {
         const { isSignedIn } = await signIn({
           username: email,
           password: password,
@@ -70,8 +70,8 @@
 
         if (isSignedIn) {
           const user = await getCurrentUser();
-          let username = email?.split("@")[0] || user.userId;
-          
+          let username = email?.split('@')[0] || user.userId;
+
           try {
             const profile = await getMyProfile();
             if (profile?.username) {
@@ -80,73 +80,160 @@
           } catch (error) {
             // Use email prefix as fallback
           }
-          
+
           auth.setUser({
             id: user.userId,
             username: username,
             email: email,
           });
-          
+
           await tick();
           const redirect = page.url.searchParams.get('redirect') || '/dashboard';
           goto(redirect, { replaceState: true });
-        }
-      } else {
-        if (password !== confirmPassword) {
-          error = "Passwords do not match";
-          loading = false;
           return;
         }
+      } catch (signInError) {
+        // If auto sign-in fails, just show login form
+        console.log('Auto sign-in after confirmation failed, showing login form');
+      }
 
-        if (password.length < 8) {
-          error = "Password must be at least 8 characters";
-          loading = false;
-          return;
+      needsConfirmation = false;
+      isLogin = true;
+      confirmationCode = '';
+      error = 'Email verified! Please sign in.';
+    } else if (isLogin) {
+      try {
+        await signOut({ global: true });
+      } catch (signOutError) {
+        // Ignore
+      }
+
+      const { isSignedIn } = await signIn({
+        username: email,
+        password: password,
+      });
+
+      if (isSignedIn) {
+        const user = await getCurrentUser();
+        let username = email?.split('@')[0] || user.userId;
+
+        try {
+          const profile = await getMyProfile();
+          if (profile?.username) {
+            username = profile.username;
+          }
+        } catch (error) {
+          // Use email prefix as fallback
         }
 
-        const { nextStep } = await signUp({
-          username: email,
-          password: password,
-          options: {
-            userAttributes: {
-              email: email,
-            },
-            autoSignIn: true,
-          },
+        auth.setUser({
+          id: user.userId,
+          username: username,
+          email: email,
         });
 
-        if (nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
-          needsConfirmation = true;
-        } else {
-          isLogin = true;
-        }
+        await tick();
+        const redirect = page.url.searchParams.get('redirect') || '/dashboard';
+        goto(redirect, { replaceState: true });
       }
-    } catch (err: any) {
-      console.error('Auth error:', err);
-      
-      if (err.name === 'NotAuthorizedException') {
-        error = 'Incorrect email or password';
-      } else if (err.name === 'UserNotFoundException') {
-        error = 'User not found';
-      } else if (err.name === 'UsernameExistsException') {
-        error = 'An account with this email already exists';
-      } else if (err.name === 'InvalidPasswordException') {
-        error = 'Password does not meet requirements';
-      } else if (err.name === 'CodeMismatchException') {
-        error = 'Invalid verification code';
-      } else {
-        error = err.message || (isLogin ? 'Login failed' : 'Signup failed');
+    } else {
+      if (password !== confirmPassword) {
+        error = 'Passwords do not match';
+        loading = false;
+        return;
       }
-    } finally {
-      loading = false;
-    }
-  }
 
-  function toggleMode() {
-    isLogin = !isLogin;
-    error = '';
-    needsConfirmation = false;
+      if (password.length < 8) {
+        error = 'Password must be at least 8 characters';
+        loading = false;
+        return;
+      }
+
+      const { nextStep, userId } = await signUp({
+        username: email,
+        password: password,
+        options: {
+          userAttributes: {
+            email: email,
+          },
+          autoSignIn: {
+            enabled: true,
+          },
+        },
+      });
+
+      if (nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
+        needsConfirmation = true;
+      } else if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
+        // User was auto-confirmed and signed in
+        try {
+          const user = await getCurrentUser();
+          let username = email?.split('@')[0] || user.userId;
+
+          try {
+            const profile = await getMyProfile();
+            if (profile?.username) {
+              username = profile.username;
+            }
+          } catch (error) {
+            // Use email prefix as fallback
+          }
+
+          auth.setUser({
+            id: user.userId,
+            username: username,
+            email: email,
+          });
+
+          await tick();
+          const redirect = page.url.searchParams.get('redirect') || '/dashboard';
+          goto(redirect, { replaceState: true });
+        } catch (error) {
+          // If auto sign-in failed, show login form
+          isLogin = true;
+          error = 'Account created! Please sign in.';
+        }
+      } else {
+        isLogin = true;
+      }
+    }
+  } catch (err: any) {
+    console.error('Auth error:', err);
+
+    if (err.name === 'NotAuthorizedException') {
+      if (err.message?.includes('CONFIRMED')) {
+        // User is already confirmed, try to sign them in instead
+        error = 'Account already confirmed. Please sign in.';
+        needsConfirmation = false;
+        isLogin = true;
+      } else {
+        error = 'Incorrect email or password';
+      }
+    } else if (err.name === 'UserNotFoundException') {
+      error = 'User not found';
+    } else if (err.name === 'UsernameExistsException') {
+      error = 'An account with this email already exists. Please sign in instead.';
+      isLogin = true;
+    } else if (err.name === 'InvalidPasswordException') {
+      error = 'Password does not meet requirements';
+    } else if (err.name === 'CodeMismatchException') {
+      error = 'Invalid verification code';
+    } else if (err.name === 'AliasExistsException') {
+      error = 'An account with this email already exists. Please sign in instead.';
+      isLogin = true;
+    } else {
+      error = err.message || (isLogin ? 'Login failed' : 'Signup failed');
+    }
+  } finally {
+    loading = false;
   }
+}
+
+function toggleMode() {
+  isLogin = !isLogin;
+  error = '';
+  needsConfirmation = false;
+}
 </script>
 
 <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 relative overflow-hidden">
