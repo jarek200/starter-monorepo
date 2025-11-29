@@ -4,10 +4,9 @@
 </svelte:head>
 
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import Button from '$lib/components/ui/button.svelte';
-  import Card from '$lib/components/ui/card.svelte';
-  import Badge from '$lib/components/ui/badge.svelte';
+import { goto } from '$app/navigation';
+import { Button } from '$lib/components/ui/button/index.js';
+import { Card, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 </script>
 
 <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -18,12 +17,6 @@
   
   <div class="container mx-auto px-4 py-20 relative z-10">
     <div class="max-w-4xl mx-auto text-center">
-      <div class="inline-block mb-6">
-        <Badge variant="secondary" class="px-4 py-2 bg-purple-500/20 text-purple-300 rounded-full text-sm font-medium backdrop-blur-sm border border-purple-500/30">
-          ✨ Modern Full-Stack Starter
-        </Badge>
-      </div>
-
       <h1 class="text-6xl md:text-7xl font-bold mb-6 leading-tight">
         <span class="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
           SST Monorepo Starter
@@ -46,19 +39,25 @@
       </div>
 
       <div class="grid md:grid-cols-3 gap-6 mt-20">
-        <Card class="bg-white/5 backdrop-blur-lg p-8 rounded-3xl border border-white/10">
-          <h3 class="text-2xl font-bold text-white mb-3">Authentication</h3>
-          <p class="text-gray-300">AWS Cognito integration with email verification</p>
+        <Card class="bg-white/5 backdrop-blur-lg rounded-3xl border-0">
+          <CardHeader>
+            <CardTitle class="text-white">Authentication</CardTitle>
+            <CardDescription class="text-gray-300">AWS Cognito integration with email verification</CardDescription>
+          </CardHeader>
         </Card>
 
-        <Card class="bg-white/5 backdrop-blur-lg p-8 rounded-3xl border border-white/10">
-          <h3 class="text-2xl font-bold text-white mb-3">GraphQL API</h3>
-          <p class="text-gray-300">AppSync with JavaScript resolvers</p>
+        <Card class="bg-white/5 backdrop-blur-lg rounded-3xl border-0">
+          <CardHeader>
+            <CardTitle class="text-white">GraphQL API</CardTitle>
+            <CardDescription class="text-gray-300">AppSync with JavaScript resolvers</CardDescription>
+          </CardHeader>
         </Card>
 
-        <Card class="bg-white/5 backdrop-blur-lg p-8 rounded-3xl border border-white/10">
-          <h3 class="text-2xl font-bold text-white mb-3">Database</h3>
-          <p class="text-gray-300">DynamoDB with single-table design</p>
+        <Card class="bg-white/5 backdrop-blur-lg rounded-3xl border-0">
+          <CardHeader>
+            <CardTitle class="text-white">Database</CardTitle>
+            <CardDescription class="text-gray-300">DynamoDB with single-table design</CardDescription>
+          </CardHeader>
         </Card>
       </div>
     </div>

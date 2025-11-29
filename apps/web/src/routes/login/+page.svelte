@@ -16,9 +16,17 @@ import { tick } from 'svelte';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import Button from '$lib/components/ui/button.svelte';
-import Card from '$lib/components/ui/card.svelte';
-import Input from '$lib/components/ui/input.svelte';
+import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
+import { Button } from '$lib/components/ui/button/index.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '$lib/components/ui/card/index.js';
+import { Input } from '$lib/components/ui/input/index.js';
+import { Label } from '$lib/components/ui/label/index.js';
 import { getMyProfile } from '$lib/services/graphql';
 import { auth } from '$lib/stores/auth';
 
@@ -246,13 +254,14 @@ function handleReturnToLanding() {
     <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-blue-500/30 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
   </div>
 
-  <Card class="w-full max-w-md relative z-10 bg-white/10 backdrop-blur-xl border-white/20">
-    <div class="p-8">
+  <Card class="w-full max-w-md relative z-10 bg-white/10 backdrop-blur-xl border-0">
+    <CardHeader>
       <div class="mb-4">
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onclick={handleReturnToLanding}
-          class="flex items-center text-sm text-gray-300 hover:text-white transition-colors"
+          class="flex items-center text-sm text-gray-300 hover:text-white hover:bg-transparent transition-colors p-0 h-auto"
           aria-label="Return to landing page"
         >
           <svg
@@ -270,34 +279,34 @@ function handleReturnToLanding() {
             />
           </svg>
           Back to Home
-        </button>
+        </Button>
       </div>
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">
-          {needsConfirmation ? 'Verify Email' : isLogin ? 'Welcome Back' : 'Create Account'}
-        </h1>
-        <p class="text-gray-300">
-          {needsConfirmation 
-            ? 'Enter the verification code sent to your email' 
-            : isLogin 
-              ? 'Sign in to continue' 
-              : 'Sign up to get started'}
-        </p>
-      </div>
+      <CardTitle class="text-white text-center">
+        {needsConfirmation ? 'Verify Email' : isLogin ? 'Welcome Back' : 'Create Account'}
+      </CardTitle>
+      <CardDescription class="text-gray-300 text-center">
+        {needsConfirmation 
+          ? 'Enter the verification code sent to your email' 
+          : isLogin 
+            ? 'Sign in to continue' 
+            : 'Sign up to get started'}
+      </CardDescription>
+    </CardHeader>
 
+    <CardContent>
       <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-4">
         {#if needsConfirmation}
-          <div>
-            <label for="code" class="block text-sm font-medium text-gray-200 mb-2">
+          <div class="space-y-2">
+            <Label for="code" class="text-gray-200">
               Verification Code
-            </label>
+            </Label>
             <Input
               id="code"
               type="text"
               bind:value={confirmationCode}
               placeholder="Enter 6-digit code"
               required
-              class="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+              class="bg-white/10 border-0 text-white placeholder:text-gray-400"
             />
           </div>
 
@@ -309,54 +318,54 @@ function handleReturnToLanding() {
             {loading ? 'Verifying...' : 'Verify Email'}
           </Button>
         {:else}
-          <div>
-            <label for="email" class="block text-sm font-medium text-gray-200 mb-2">
+          <div class="space-y-2">
+            <Label for="email" class="text-gray-200">
               Email
-            </label>
+            </Label>
             <Input
               id="email"
               type="email"
               bind:value={email}
               placeholder="you@example.com"
               required
-              class="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+              class="bg-white/10 border-0 text-white placeholder:text-gray-400"
             />
           </div>
 
-          <div>
-            <label for="password" class="block text-sm font-medium text-gray-200 mb-2">
+          <div class="space-y-2">
+            <Label for="password" class="text-gray-200">
               Password
-            </label>
+            </Label>
             <Input
               id="password"
               type="password"
               bind:value={password}
               placeholder="••••••••"
               required
-              class="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+              class="bg-white/10 border-0 text-white placeholder:text-gray-400"
             />
           </div>
 
           {#if !isLogin}
-            <div>
-              <label for="confirmPassword" class="block text-sm font-medium text-gray-200 mb-2">
+            <div class="space-y-2">
+              <Label for="confirmPassword" class="text-gray-200">
                 Confirm Password
-              </label>
+              </Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 bind:value={confirmPassword}
                 placeholder="••••••••"
                 required
-                class="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                class="bg-white/10 border-0 text-white placeholder:text-gray-400"
               />
             </div>
           {/if}
 
           {#if error}
-            <div class="p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
-              <p class="text-sm text-red-200">{error}</p>
-            </div>
+            <Alert variant="destructive" class="bg-red-500/20 border-red-500/50">
+              <AlertDescription class="text-red-200">{error}</AlertDescription>
+            </Alert>
           {/if}
 
           <Button
@@ -369,16 +378,17 @@ function handleReturnToLanding() {
         {/if}
 
         <div class="text-center">
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onclick={toggleMode}
-            class="text-sm text-gray-300 hover:text-white transition-colors"
+            class="text-sm text-gray-300 hover:text-white hover:bg-transparent transition-colors p-0 h-auto"
           >
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </CardContent>
   </Card>
 </div>
 
