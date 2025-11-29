@@ -1,5 +1,7 @@
 # SST Monorepo Starter
 
+> 🚀 **Template Repository** - Click "Use this template" to create a new project from this starter
+
 A modern, production-ready starter template for building full-stack applications with:
 
 - **Frontend**: SvelteKit 2 + TypeScript + Tailwind CSS
@@ -28,10 +30,18 @@ A modern, production-ready starter template for building full-stack applications
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Clone and Setup
 
 ```bash
-cd sst-monorepo
+# Clone your new project (created from template)
+git clone https://github.com/your-username/your-project.git
+cd your-project
+
+# Run the setup script to customize project name
+chmod +x scripts/setup-new-project.sh
+./scripts/setup-new-project.sh "Your Project Name"
+
+# Or manually install dependencies
 pnpm install
 ```
 
