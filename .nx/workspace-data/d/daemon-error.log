@@ -1,0 +1,26 @@
+Daemon process terminated and closed the connection
+
+Messages from the log:
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.705Z - Done responding to the client handleGetNxConsoleStatus
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.705Z - Handled json message GET_NX_CONSOLE_STATUS. Handling time: 0. Response time: 0.
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.725Z - Established a connection. Number of open connections: 2
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.725Z - Closed a connection. Number of open connections: 1
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.729Z - Closed a connection. Number of open connections: 0
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.742Z - Established a connection. Number of open connections: 1
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.742Z - Established a connection. Number of open connections: 2
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.742Z - Closed a connection. Number of open connections: 1
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.748Z - Received raw message of length 32
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.748Z - Received json message of type REQUEST_PROJECT_GRAPH
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.748Z - [REQUEST]: Client Request for Project Graph Received
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.752Z - Time taken for 'loadSpecifiedNxPlugins' 1.3905830000000208ms
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.753Z - [WATCHER]: 2 file(s) created or restored, 0 file(s) modified, 0 file(s) deleted
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.754Z - [WATCHER]: Processing file changes in outputs
+Time for 'plugin worker 23887 code loading' 2.4304580000000016
+Time for 'plugin worker 23885 code loading' 2.618499999999999
+Time for 'plugin worker 23886 code loading' 2.4815000000000005
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.898Z - Closed a connection. Number of open connections: 0
+[NX v22.1.3 Daemon Server] - 2025-11-29T13:46:46.898Z - [WATCHER]: Stopping the watcher for /Users/jarekwyprzal/dev/sst-monorepo (sources)
+
+
+
+More information: /Users/jarekwyprzal/dev/sst-monorepo/.nx/workspace-data/d/daemon.log

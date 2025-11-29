@@ -1,0 +1,13 @@
+{
+  "name": "@sst-monorepo/graphql",
+  "version": "1.0.0",
+  "private": true,
+  "main": "schema.graphql",
+  "types": "index.d.ts",
+  "files": [
+    "schema.graphql",
+    "index.d.ts"
+  ],
+  "packageManager": "pnpm@10.20.0"
+}
+

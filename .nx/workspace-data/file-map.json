@@ -1,0 +1,228 @@
+{
+  "version": "6.0",
+  "nxVersion": "22.1.3",
+  "pathMappings": {},
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "projectFileMap": {
+      "web": [
+        {
+          "file": "apps/web/package.json",
+          "hash": "17664381008320171885",
+          "deps": [
+            "npm:@biomejs/biome",
+            "npm:@sveltejs/adapter-auto",
+            "npm:@sveltejs/adapter-static",
+            "npm:@sveltejs/kit",
+            "npm:@sveltejs/vite-plugin-svelte",
+            "npm:autoprefixer",
+            "npm:aws-amplify",
+            "npm:clsx",
+            "npm:postcss",
+            "npm:svelte",
+            "npm:svelte-check",
+            "npm:svelte-kit-sst",
+            "npm:tailwind-merge",
+            "npm:tailwind-variants",
+            "npm:tailwindcss",
+            "npm:typescript",
+            "npm:vite",
+            "npm:@aws-amplify/api-graphql",
+            "@sst-monorepo/core",
+            "@sst-monorepo/graphql"
+          ]
+        },
+        {
+          "file": "apps/web/postcss.config.js",
+          "hash": "1121830044826443979"
+        },
+        {
+          "file": "apps/web/src/app.css",
+          "hash": "10673511116316042319"
+        },
+        {
+          "file": "apps/web/src/app.d.ts",
+          "hash": "16562497431412516793"
+        },
+        {
+          "file": "apps/web/src/app.html",
+          "hash": "18441766884450945979"
+        },
+        {
+          "file": "apps/web/src/hooks.client.ts",
+          "hash": "15269225410630355382"
+        },
+        {
+          "file": "apps/web/src/hooks.server.ts",
+          "hash": "11078669643800388404"
+        },
+        {
+          "file": "apps/web/src/lib/amplify.ts",
+          "hash": "6322816114734461601"
+        },
+        {
+          "file": "apps/web/src/lib/components/ui/badge.svelte",
+          "hash": "16159955851788006512"
+        },
+        {
+          "file": "apps/web/src/lib/components/ui/button.svelte",
+          "hash": "13713942129224746473"
+        },
+        {
+          "file": "apps/web/src/lib/components/ui/card.svelte",
+          "hash": "12515817322914116254"
+        },
+        {
+          "file": "apps/web/src/lib/components/ui/input.svelte",
+          "hash": "1284662275615667575"
+        },
+        {
+          "file": "apps/web/src/lib/components/ui/textarea.svelte",
+          "hash": "16260269961246409451"
+        },
+        {
+          "file": "apps/web/src/lib/services/graphql.ts",
+          "hash": "5879708784426411025"
+        },
+        {
+          "file": "apps/web/src/lib/stores/auth.ts",
+          "hash": "4475476659557309102"
+        },
+        {
+          "file": "apps/web/src/lib/utils.ts",
+          "hash": "302961142249979891"
+        },
+        {
+          "file": "apps/web/src/routes/(protected)/+layout.svelte",
+          "hash": "3721046092527989463"
+        },
+        {
+          "file": "apps/web/src/routes/(protected)/dashboard/+page.svelte",
+          "hash": "8399994791056092789"
+        },
+        {
+          "file": "apps/web/src/routes/+layout.svelte",
+          "hash": "4714415586141640113"
+        },
+        {
+          "file": "apps/web/src/routes/+page.svelte",
+          "hash": "9568849091631990478"
+        },
+        {
+          "file": "apps/web/src/routes/login/+page.svelte",
+          "hash": "1047298399536521796"
+        },
+        {
+          "file": "apps/web/svelte.config.js",
+          "hash": "1157934221030077959"
+        },
+        {
+          "file": "apps/web/tailwind.config.js",
+          "hash": "12208889422158139168"
+        },
+        {
+          "file": "apps/web/tsconfig.json",
+          "hash": "16415326640488980345"
+        },
+        {
+          "file": "apps/web/vite.config.ts",
+          "hash": "2948192695958084803"
+        }
+      ],
+      "@sst-monorepo/graphql": [
+        {
+          "file": "packages/graphql/index.d.ts",
+          "hash": "3178929774575343091"
+        },
+        {
+          "file": "packages/graphql/package.json",
+          "hash": "18339984345208070458"
+        },
+        {
+          "file": "packages/graphql/schema.graphql",
+          "hash": "17416775699159074739"
+        }
+      ],
+      "@sst-monorepo/core": [
+        {
+          "file": "packages/core/package.json",
+          "hash": "3697727341255264843",
+          "deps": [
+            "npm:typescript"
+          ]
+        },
+        {
+          "file": "packages/core/src/index.ts",
+          "hash": "1587882081337075760"
+        },
+        {
+          "file": "packages/core/src/types/index.ts",
+          "hash": "12264855122518136340"
+        },
+        {
+          "file": "packages/core/tsconfig.json",
+          "hash": "1523105612986380918"
+        }
+      ]
+    },
+    "nonProjectFiles": [
+      {
+        "file": ".DS_Store",
+        "hash": "9377021389311117683"
+      },
+      {
+        "file": "README.md",
+        "hash": "3663278646540806451"
+      },
+      {
+        "file": "infra/api/api-setup.ts",
+        "hash": "14334565707458535841"
+      },
+      {
+        "file": "infra/api/resolvers/index.ts",
+        "hash": "13628133873982869142"
+      },
+      {
+        "file": "infra/api/resolvers/users.ts",
+        "hash": "15983696101701934280"
+      },
+      {
+        "file": "infra/auth.ts",
+        "hash": "8951316292596258852"
+      },
+      {
+        "file": "infra/functions.ts",
+        "hash": "11177070244947143853"
+      },
+      {
+        "file": "infra/storage.ts",
+        "hash": "7774719203492018776"
+      },
+      {
+        "file": "nx.json",
+        "hash": "14434529522498877223"
+      },
+      {
+        "file": "package.json",
+        "hash": "11601603474290775068"
+      },
+      {
+        "file": "pnpm-lock.yaml",
+        "hash": "10693583893155504854"
+      },
+      {
+        "file": "pnpm-workspace.yaml",
+        "hash": "17780125754154163412"
+      },
+      {
+        "file": "sst.config.ts",
+        "hash": "17417944246068203100"
+      },
+      {
+        "file": "tsconfig.json",
+        "hash": "9311026900602566051"
+      }
+    ]
+  },
+  "externalNodesHash": "1625391094896299807"
+}
