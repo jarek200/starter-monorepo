@@ -21,7 +21,7 @@ A modern, production-ready starter template for building full-stack applications
 
 ## Prerequisites
 
-- **Node.js 22** (use nvm: `nvm install 22`)
+- **Node.js 24** (use nvm: `nvm install 24`)
 - **pnpm**: `npm install -g pnpm`
 - **AWS CLI** configured with credentials
 - **AWS Account** with appropriate permissions

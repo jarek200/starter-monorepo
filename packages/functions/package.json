@@ -12,11 +12,11 @@
     "@aws-sdk/client-dynamodb": "^3.922.0",
     "@aws-sdk/lib-dynamodb": "^3.922.0",
     "@sst-monorepo/core": "workspace:*",
-    "ulid": "^2.4.0"
+    "ulid": "^3.0.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
-    "@types/node": "^22.9.0",
+    "@types/node": "^24.10.1",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.20.0"

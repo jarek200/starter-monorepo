@@ -3,18 +3,18 @@
 export default $config({
   app(input) {
     return {
-      name: "sst-monorepo-starter",
-      removal: input?.stage === "production" ? "retain" : "remove",
-      home: "aws",
+      name: 'sst-monorepo-starter',
+      removal: input?.stage === 'production' ? 'retain' : 'remove',
+      home: 'aws',
     };
   },
   async run() {
     // Dynamic imports (required by SST)
-    const { createStorage } = await import("./infra/storage");
-    const { createUserProfile } = await import("./infra/functions");
-    const { createAuth } = await import("./infra/auth");
-    const { createApi, createDataSource } = await import("./infra/api/api-setup");
-    const { addAllResolvers } = await import("./infra/api/resolvers");
+    const { createStorage } = await import('./infra/storage');
+    const { createUserProfile } = await import('./infra/functions');
+    const { createAuth } = await import('./infra/auth');
+    const { createApi, createDataSource } = await import('./infra/api/api-setup');
+    const { addAllResolvers } = await import('./infra/api/resolvers');
 
     // Storage: DynamoDB table
     const { table } = createStorage();
@@ -35,22 +35,26 @@ export default $config({
     addAllResolvers(api, dynamoDataSource, table.name);
 
     // SvelteKit Site
-    const web = new sst.aws.SvelteKit("Web", {
-      path: "apps/web",
+    const web = new sst.aws.SvelteKit('Web', {
+      path: 'apps/web',
       link: [table, auth, authClient, api],
       transform: {
         server(server) {
-          const nodejs = ((server.nodejs as any) ??= {});
+          server.runtime = 'nodejs22.x';
+          // biome-ignore lint/suspicious/noExplicitAny: SST server.nodejs type is not fully typed
+          if (!server.nodejs) {
+            server.nodejs = {} as any;
+          }
+          const nodejs = server.nodejs as any;
 
-          const existingExternal =
-            ((nodejs.esbuild?.external as string[] | undefined) ?? []).slice();
-          const external = Array.from(
-            new Set([...existingExternal, "fsevents", "lightningcss"]),
-          );
+          const existingExternal = (
+            (nodejs.esbuild?.external as string[] | undefined) ?? []
+          ).slice();
+          const external = Array.from(new Set([...existingExternal, 'fsevents', 'lightningcss']));
 
           nodejs.loader = {
             ...(nodejs.loader ?? {}),
-            ".node": "file",
+            '.node': 'file',
           };
 
           nodejs.esbuild = {

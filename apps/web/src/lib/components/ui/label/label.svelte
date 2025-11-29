@@ -1,7 +1,9 @@
 <script lang="ts">
-import { cn } from '\$lib/utils.js';
 import type { Label as LabelPrimitive } from 'bits-ui';
+// biome-ignore lint/correctness/noUnusedImports: Used in template (line 12)
+import { cn } from '$lib/utils.js';
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 let { ref = $bindable(null), class: className, ...restProps }: LabelPrimitive.RootProps = $props();
 </script>
 
