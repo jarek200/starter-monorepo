@@ -12,9 +12,10 @@ import { generateClient } from 'aws-amplify/api';
 import { ensureAmplifyConfigured } from '../amplify';
 
 // Lazy client initialization
-type GraphQLClient = ReturnType<typeof generateClient>;
-let client: GraphQLClient | null = null;
-let clientPromise: Promise<GraphQLClient> | null = null;
+// biome-ignore lint/suspicious/noExplicitAny: AWS Amplify generateClient return type is complex
+let client: any = null;
+// biome-ignore lint/suspicious/noExplicitAny: AWS Amplify generateClient return type is complex
+let clientPromise: Promise<any> | null = null;
 
 async function getClient() {
   if (client) return client;

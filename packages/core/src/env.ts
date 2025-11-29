@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { type ZodError, type ZodIssue, z } from 'zod';
 
 /**
  * Environment variable validation schema
@@ -38,7 +38,8 @@ export function validateEnv(): Env {
     return envSchema.parse(process.env);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missing = error.errors.map((e) => e.path.join('.')).join(', ');
+      const zodError = error as ZodError<unknown>;
+      const missing = zodError.issues.map((e: ZodIssue) => e.path.join('.')).join(', ');
       throw new Error(`Missing or invalid environment variables: ${missing}`);
     }
     throw error;
@@ -78,7 +79,8 @@ export function validateLambdaEnv(): LambdaEnv {
     return lambdaEnvSchema.parse(process.env);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missing = error.errors.map((e) => e.path.join('.')).join(', ');
+      const zodError = error as ZodError<unknown>;
+      const missing = zodError.issues.map((e: ZodIssue) => e.path.join('.')).join(', ');
       throw new Error(`Missing or invalid Lambda environment variables: ${missing}`);
     }
     throw error;

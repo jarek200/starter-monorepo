@@ -148,6 +148,9 @@ importers:
       xstate:
         specifier: ^5.19.0
         version: 5.24.0
+      zod:
+        specifier: ^4.1.13
+        version: 4.1.13
     devDependencies:
       typescript:
         specifier: ^5.9.3

@@ -7,7 +7,7 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { validateLambdaEnv } from '@sst-monorepo/core/env';
+import { validateLambdaEnv } from '@sst-monorepo/core';
 import type { PostConfirmationTriggerHandler } from 'aws-lambda';
 
 // Validate environment variables at module load time

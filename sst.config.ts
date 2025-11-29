@@ -32,7 +32,7 @@ export default $config({
     const dynamoDataSource = createDataSource(api, table);
 
     // Resolvers: Add all resolvers
-    addAllResolvers(api, dynamoDataSource, table.name);
+    addAllResolvers(api, dynamoDataSource, String(table.name));
 
     // SvelteKit Site
     const web = new sst.aws.SvelteKit('Web', {
