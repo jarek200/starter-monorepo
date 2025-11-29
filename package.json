@@ -27,6 +27,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
+    "codegen": "pnpm --filter @sst-monorepo/graphql codegen",
+    "codegen:watch": "pnpm --filter @sst-monorepo/graphql codegen:watch",
     "prepare": "husky"
   },
   "keywords": [],

@@ -1,16 +1,8 @@
-export type User = {
-  userId: string;
-  username: string;
-  email: string;
-  name?: string | null;
-  bio?: string | null;
-  avatar?: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+/**
+ * Re-export generated GraphQL types
+ *
+ * Types are auto-generated from schema.graphql.
+ * Run `pnpm codegen` to regenerate types after schema changes.
+ */
 
-export type UpdateUserInput = {
-  name?: string | null;
-  bio?: string | null;
-  avatar?: string | null;
-};
+export * from './generated/index';

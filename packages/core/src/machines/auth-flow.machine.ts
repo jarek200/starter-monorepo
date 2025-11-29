@@ -17,6 +17,7 @@ export interface AuthFlowContext {
 
 export type AuthFlowEvent =
   | { type: 'NAVIGATE_TO_LOGIN' }
+  | { type: 'RETURN_TO_LANDING' }
   | { type: 'ENTER_CREDENTIALS'; email: string; password: string }
   | { type: 'SUBMIT_LOGIN' }
   | { type: 'LOGIN_SUCCESS' }
@@ -31,7 +32,7 @@ export type AuthFlowEvent =
  * Auth Flow State Machine
  *
  * States:
- * - unauthenticated: User is not logged in
+ * - unauthenticated: User is not logged in (landing page)
  * - navigatingToLogin: Navigating to login page
  * - enteringCredentials: User is entering email/password
  * - submittingLogin: Login form submitted, waiting for response
@@ -39,6 +40,19 @@ export type AuthFlowEvent =
  * - navigatingToDashboard: Redirecting to dashboard
  * - loggingOut: Logout in progress
  * - loggedOut: Successfully logged out
+ *
+ * Events:
+ * - NAVIGATE_TO_LOGIN: Navigate from landing to login page
+ * - RETURN_TO_LANDING: Return from login page back to landing page
+ * - ENTER_CREDENTIALS: User enters email and password
+ * - SUBMIT_LOGIN: Submit login form
+ * - LOGIN_SUCCESS: Login succeeded
+ * - LOGIN_FAILED: Login failed with error
+ * - NAVIGATE_TO_DASHBOARD: Navigate to dashboard after login
+ * - CLICK_LOGOUT: User clicks logout button
+ * - LOGOUT_SUCCESS: Logout succeeded
+ * - LOGOUT_FAILED: Logout failed
+ * - RESET: Reset machine to initial state
  */
 export const authFlowMachine = setup({
   types: {
@@ -65,6 +79,14 @@ export const authFlowMachine = setup({
     },
     navigatingToLogin: {
       on: {
+        RETURN_TO_LANDING: {
+          target: 'unauthenticated',
+          actions: ({ context }) => {
+            context.currentUrl = '/';
+            context.email = '';
+            context.password = '';
+          },
+        },
         ENTER_CREDENTIALS: {
           target: 'enteringCredentials',
           actions: ({ event, context }) => {
@@ -76,6 +98,14 @@ export const authFlowMachine = setup({
     },
     enteringCredentials: {
       on: {
+        RETURN_TO_LANDING: {
+          target: 'unauthenticated',
+          actions: ({ context }) => {
+            context.currentUrl = '/';
+            context.email = '';
+            context.password = '';
+          },
+        },
         SUBMIT_LOGIN: {
           target: 'submittingLogin',
         },
@@ -83,6 +113,15 @@ export const authFlowMachine = setup({
     },
     submittingLogin: {
       on: {
+        RETURN_TO_LANDING: {
+          target: 'unauthenticated',
+          actions: ({ context }) => {
+            context.currentUrl = '/';
+            context.email = '';
+            context.password = '';
+            context.isAuthenticated = false;
+          },
+        },
         LOGIN_SUCCESS: {
           target: 'authenticated',
           actions: ({ context }) => {

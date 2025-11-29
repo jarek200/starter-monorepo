@@ -83,11 +83,14 @@ test.describe('Authentication Flow with XState', () => {
         console.log('State transition check skipped, continuing...');
       }
 
-      // Click "Get Started" button on landing page to navigate to login
-      await page.click('button:has-text("Get Started"), a[href="/login"]');
+      // Wait for the "Get Started" button to be visible
+      await page.waitForSelector('button:has-text("Get Started")', { timeout: 5000 });
 
-      // Wait for navigation to login page
-      await page.waitForURL(/.*login/, { timeout: 10000 });
+      // Click "Get Started" button on landing page to navigate to login
+      await Promise.all([
+        page.waitForURL(/.*login/, { timeout: 10000 }),
+        page.click('button:has-text("Get Started")'),
+      ]);
 
       // Wait for client-side JavaScript to load and hydrate
       await page
@@ -290,6 +293,121 @@ test.describe('Authentication Flow with XState', () => {
       expect(actor.getSnapshot().context.isAuthenticated).toBe(false);
 
       console.log('✅ All state transitions validated!');
+    } finally {
+      actor.stop();
+    }
+  });
+
+  test('return to landing page from login', async ({ page }) => {
+    test.setTimeout(30000); // Increase timeout for this test
+    const actor = createActor(authFlowMachine);
+    actor.start();
+
+    try {
+      // Start on landing page
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      expect(actor.getSnapshot().value).toBe('unauthenticated');
+
+      // Wait for the "Get Started" button to be visible
+      await page.waitForSelector('button:has-text("Get Started")', { timeout: 5000 });
+
+      // Navigate to login
+      actor.send({ type: 'NAVIGATE_TO_LOGIN' });
+
+      // Click the button and wait for navigation
+      await Promise.all([
+        page.waitForURL(/.*login/, { timeout: 10000 }),
+        page.click('button:has-text("Get Started")'),
+      ]);
+
+      // Wait for page to fully load
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1000); // Wait for hydration
+
+      // Verify we're on login page and in correct state
+      expect(actor.getSnapshot().value).toBe('navigatingToLogin');
+      await expect(page).toHaveURL(/.*login/);
+
+      // Wait for the "Back to Home" button to be visible
+      await page.waitForSelector('button:has-text("Back to Home")', { timeout: 5000 });
+
+      // Click return to landing button
+      actor.send({ type: 'RETURN_TO_LANDING' });
+
+      // Click and wait for navigation back to landing page
+      await Promise.all([
+        page.waitForURL('/', { timeout: 5000 }),
+        page.click('button:has-text("Back to Home")'),
+      ]);
+
+      // Wait for page to fully load
+      await page.waitForLoadState('networkidle');
+
+      // Verify state transition
+      expect(actor.getSnapshot().value).toBe('unauthenticated');
+      expect(actor.getSnapshot().context.currentUrl).toBe('/');
+      expect(actor.getSnapshot().context.email).toBe('');
+      expect(actor.getSnapshot().context.password).toBe('');
+
+      // Verify we're on landing page
+      await expect(page).toHaveURL('/');
+      await expect(page.locator('h1')).toContainText(/SST Monorepo Starter/i);
+
+      console.log('✅ Return to landing flow completed successfully!');
+    } finally {
+      actor.stop();
+    }
+  });
+
+  test('return to landing state transitions', async ({ page }) => {
+    const actor = createActor(authFlowMachine);
+    actor.start();
+
+    try {
+      // Test RETURN_TO_LANDING from navigatingToLogin state
+      actor.send({ type: 'NAVIGATE_TO_LOGIN' });
+      expect(actor.getSnapshot().value).toBe('navigatingToLogin');
+
+      actor.send({ type: 'RETURN_TO_LANDING' });
+      expect(actor.getSnapshot().value).toBe('unauthenticated');
+      expect(actor.getSnapshot().context.currentUrl).toBe('/');
+      expect(actor.getSnapshot().context.email).toBe('');
+      expect(actor.getSnapshot().context.password).toBe('');
+
+      // Test RETURN_TO_LANDING from enteringCredentials state
+      actor.send({ type: 'NAVIGATE_TO_LOGIN' });
+      actor.send({
+        type: 'ENTER_CREDENTIALS',
+        email: 'test@example.com',
+        password: 'password123',
+      });
+      expect(actor.getSnapshot().value).toBe('enteringCredentials');
+
+      actor.send({ type: 'RETURN_TO_LANDING' });
+      expect(actor.getSnapshot().value).toBe('unauthenticated');
+      expect(actor.getSnapshot().context.currentUrl).toBe('/');
+      expect(actor.getSnapshot().context.email).toBe('');
+      expect(actor.getSnapshot().context.password).toBe('');
+
+      // Test RETURN_TO_LANDING from submittingLogin state
+      actor.send({ type: 'NAVIGATE_TO_LOGIN' });
+      actor.send({
+        type: 'ENTER_CREDENTIALS',
+        email: 'test@example.com',
+        password: 'password123',
+      });
+      actor.send({ type: 'SUBMIT_LOGIN' });
+      expect(actor.getSnapshot().value).toBe('submittingLogin');
+
+      actor.send({ type: 'RETURN_TO_LANDING' });
+      expect(actor.getSnapshot().value).toBe('unauthenticated');
+      expect(actor.getSnapshot().context.currentUrl).toBe('/');
+      expect(actor.getSnapshot().context.email).toBe('');
+      expect(actor.getSnapshot().context.password).toBe('');
+      expect(actor.getSnapshot().context.isAuthenticated).toBe(false);
+
+      console.log('✅ Return to landing state transitions validated!');
     } finally {
       actor.stop();
     }

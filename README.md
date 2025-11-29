@@ -135,6 +135,39 @@ The starter includes a minimal schema with:
 
 - `updateUserProfile(input: UpdateUserInput!): User` - Update user profile
 
+## GraphQL Code Generation
+
+This project uses [GraphQL Code Generator](https://the-guild.dev/graphql/codegen) to automatically generate TypeScript types from the GraphQL schema. This ensures type safety and keeps your code in sync with your schema.
+
+### Generating Types
+
+After updating `packages/graphql/schema.graphql`, run:
+
+```bash
+pnpm codegen
+```
+
+This generates TypeScript types in `packages/graphql/generated/index.ts` that you can import:
+
+```typescript
+import type { User, UpdateUserInput } from '@sst-monorepo/graphql';
+```
+
+### Watch Mode
+
+For development, you can run codegen in watch mode to automatically regenerate types when the schema changes:
+
+```bash
+pnpm codegen:watch
+```
+
+### Benefits
+
+- ✅ **Type Safety**: TypeScript catches schema mismatches at compile time
+- ✅ **Auto-completion**: IDE autocomplete for all GraphQL types
+- ✅ **Refactoring**: Rename fields in schema and TypeScript will show all places that need updating
+- ✅ **Documentation**: Generated types serve as living documentation
+
 ## Environment Variables
 
 ### Recommended: SST Dev Mode (No .env file needed!)
@@ -174,9 +207,9 @@ Entity patterns:
 ### 1. Add a new GraphQL type
 
 1. Update `packages/graphql/schema.graphql`
-2. Add resolvers in `infra/api/resolvers/`
-3. Add types in `packages/core/src/types/`
-4. Add service functions in `apps/web/src/lib/services/graphql.ts`
+2. **Run `pnpm codegen`** to regenerate TypeScript types from the schema
+3. Add resolvers in `infra/api/resolvers/`
+4. Add service functions in `apps/web/src/lib/services/graphql.ts` (types are now auto-generated!)
 
 ### 2. Add a new Lambda function
 

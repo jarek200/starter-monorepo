@@ -234,6 +234,10 @@ function toggleMode() {
   error = '';
   needsConfirmation = false;
 }
+
+function handleReturnToLanding() {
+  goto('/', { replaceState: false });
+}
 </script>
 
 <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 relative overflow-hidden">
@@ -244,6 +248,30 @@ function toggleMode() {
 
   <Card class="w-full max-w-md relative z-10 bg-white/10 backdrop-blur-xl border-white/20">
     <div class="p-8">
+      <div class="mb-4">
+        <button
+          type="button"
+          onclick={handleReturnToLanding}
+          class="flex items-center text-sm text-gray-300 hover:text-white transition-colors"
+          aria-label="Return to landing page"
+        >
+          <svg
+            class="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back to Home
+        </button>
+      </div>
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">
           {needsConfirmation ? 'Verify Email' : isLogin ? 'Welcome Back' : 'Create Account'}

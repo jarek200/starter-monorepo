@@ -1,19 +1,25 @@
 /**
  * GraphQL Service
  * Handles all GraphQL queries and mutations to AWS AppSync
+ *
+ * Types are auto-generated from schema.graphql using GraphQL Code Generator.
+ * Run `pnpm codegen` to regenerate types after schema changes.
  */
 
-import { generateClient } from 'aws-amplify/api';
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
+import type { UpdateUserInput, User } from '@sst-monorepo/graphql';
+import { generateClient } from 'aws-amplify/api';
 import { ensureAmplifyConfigured } from '../amplify';
 
 // Lazy client initialization
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let client: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let clientPromise: Promise<any> | null = null;
 
 async function getClient() {
   if (client) return client;
-  
+
   if (!clientPromise) {
     clientPromise = (async () => {
       if (typeof window === 'undefined') {
@@ -31,7 +37,7 @@ async function getClient() {
       }
     })();
   }
-  
+
   return clientPromise;
 }
 
@@ -42,7 +48,7 @@ export function resetGraphQLClient(): void {
 }
 
 // User Queries
-export async function getMyProfile() {
+export async function getMyProfile(): Promise<User | null> {
   const query = `
     query GetMyProfile {
       getMyProfile {
@@ -51,6 +57,7 @@ export async function getMyProfile() {
         email
         name
         bio
+        avatar
         createdAt
         updatedAt
       }
@@ -58,9 +65,9 @@ export async function getMyProfile() {
   `;
 
   const client = await getClient();
-  const result = await client.graphql({
+  const result = (await client.graphql({
     query,
-  }) as GraphQLResult<any>;
+  })) as GraphQLResult<{ getMyProfile: User | null }>;
 
   if (result.errors) {
     throw new Error(result.errors[0]?.message || 'Failed to get profile');
@@ -70,7 +77,7 @@ export async function getMyProfile() {
 }
 
 // User Mutations
-export async function updateUserProfile(input: { name?: string; bio?: string; avatar?: string }) {
+export async function updateUserProfile(input: UpdateUserInput): Promise<User | null> {
   const mutation = `
     mutation UpdateUserProfile($input: UpdateUserInput!) {
       updateUserProfile(input: $input) {
@@ -87,10 +94,10 @@ export async function updateUserProfile(input: { name?: string; bio?: string; av
   `;
 
   const client = await getClient();
-  const result = await client.graphql({
+  const result = (await client.graphql({
     query: mutation,
     variables: { input },
-  }) as GraphQLResult<any>;
+  })) as GraphQLResult<{ updateUserProfile: User | null }>;
 
   if (result.errors) {
     throw new Error(result.errors[0]?.message || 'Failed to update profile');
