@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "biomejs.biome",
+    "svelte.svelte-vscode",
+    "ms-playwright.playwright",
+    "dbaeumer.vscode-eslint"
+  ]
+}

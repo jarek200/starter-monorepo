@@ -14,4 +14,3 @@ export type UpdateUserInput = {
   bio?: string | null;
   avatar?: string | null;
 };
-

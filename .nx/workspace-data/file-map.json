@@ -5,6 +5,63 @@
   "nxJsonPlugins": [],
   "fileMap": {
     "projectFileMap": {
+      "@sst-monorepo/core": [
+        {
+          "file": "packages/core/package.json",
+          "hash": "14768460159025120215",
+          "deps": ["npm:typescript"]
+        },
+        {
+          "file": "packages/core/src/env.test.ts",
+          "hash": "7548359910926902173"
+        },
+        {
+          "file": "packages/core/src/env.ts",
+          "hash": "14869510532222963118"
+        },
+        {
+          "file": "packages/core/src/index.ts",
+          "hash": "5062493513154572301"
+        },
+        {
+          "file": "packages/core/src/machines/auth.machine.test.ts",
+          "hash": "16066049930820865511"
+        },
+        {
+          "file": "packages/core/src/machines/auth.machine.ts",
+          "hash": "7487789826582958583"
+        },
+        {
+          "file": "packages/core/src/types/index.ts",
+          "hash": "8276675774161852856"
+        },
+        {
+          "file": "packages/core/src/utils/errors.ts",
+          "hash": "10610945945743767804"
+        },
+        {
+          "file": "packages/core/src/utils/index.ts",
+          "hash": "10608213324237889511"
+        },
+        {
+          "file": "packages/core/tsconfig.json",
+          "hash": "14158159596456533753"
+        }
+      ],
+      "@sst-monorepo/graphql": [
+        {
+          "file": "packages/graphql/index.d.ts",
+          "hash": "371107358128071315"
+        },
+        {
+          "file": "packages/graphql/package.json",
+          "hash": "328208289513226776"
+        },
+        {
+          "file": "packages/graphql/schema.graphql",
+          "hash": "1580651108927305969"
+        }
+      ],
       "web": [
         {
           "file": "apps/web/package.json",
@@ -128,51 +185,68 @@
           "file": "apps/web/vite.config.ts",
           "hash": "2948192695958084803"
         }
-      ],
-      "@sst-monorepo/graphql": [
-        {
-          "file": "packages/graphql/index.d.ts",
-          "hash": "3178929774575343091"
-        },
-        {
-          "file": "packages/graphql/package.json",
-          "hash": "18339984345208070458"
-        },
-        {
-          "file": "packages/graphql/schema.graphql",
-          "hash": "17416775699159074739"
-        }
-      ],
-      "@sst-monorepo/core": [
-        {
-          "file": "packages/core/package.json",
-          "hash": "3697727341255264843",
-          "deps": [
-            "npm:typescript"
-          ]
-        },
-        {
-          "file": "packages/core/src/index.ts",
-          "hash": "1587882081337075760"
-        },
-        {
-          "file": "packages/core/src/types/index.ts",
-          "hash": "12264855122518136340"
-        },
-        {
-          "file": "packages/core/tsconfig.json",
-          "hash": "1523105612986380918"
-        }
       ]
     },
     "nonProjectFiles": [
       {
-        "file": ".DS_Store",
-        "hash": "9377021389311117683"
+        "file": ".github/workflows/ci.yml",
+        "hash": "8429636993991008437"
+      },
+      {
+        "file": ".gitignore",
+        "hash": "4011057609440778877"
+      },
+      {
+        "file": ".husky/pre-commit",
+        "hash": "8880819343189855708"
+      },
+      {
+        "file": ".husky/pre-commit.example",
+        "hash": "13379931587568363699"
+      },
+      {
+        "file": ".lintstagedrc.json",
+        "hash": "3593708102299653790"
+      },
+      {
+        "file": ".nvmrc",
+        "hash": "10485174326858718562"
+      },
+      {
+        "file": ".vscode/extensions.json",
+        "hash": "6673986296628474835"
+      },
+      {
+        "file": ".vscode/settings.json",
+        "hash": "3357709788561751813"
+      },
+      {
+        "file": "CONTRIBUTING.md",
+        "hash": "4755845540064633313"
       },
       {
         "file": "README.md",
         "hash": "3663278646540806451"
+      },
+      {
+        "file": "STARTER_IMPROVEMENTS.md",
+        "hash": "2650005770881233191"
+      },
+      {
+        "file": "XSTATE_RECOMMENDATION.md",
+        "hash": "12061930274250850744"
+      },
+      {
+        "file": "biome.json",
+        "hash": "9289550033857872401"
+      },
+      {
+        "file": "e2e/auth-flow.spec.ts",
+        "hash": "9483562880832045173"
+      },
+      {
+        "file": "e2e/example.spec.ts",
+        "hash": "14542439058893226669"
       },
       {
         "file": "infra/api/api-setup.ts",
@@ -204,15 +278,19 @@
       },
       {
         "file": "package.json",
-        "hash": "11601603474290775068"
+        "hash": "15053467540971455504"
+      },
+      {
+        "file": "playwright.config.ts",
+        "hash": "17226968673693531114"
       },
       {
         "file": "pnpm-lock.yaml",
-        "hash": "10693583893155504854"
+        "hash": "15071149715612909840"
       },
       {
         "file": "pnpm-workspace.yaml",
-        "hash": "17780125754154163412"
+        "hash": "6974655769178761441"
       },
       {
         "file": "sst.config.ts",
@@ -221,8 +299,12 @@
       {
         "file": "tsconfig.json",
         "hash": "9311026900602566051"
+      },
+      {
+        "file": "vitest.config.ts",
+        "hash": "7560434510732650430"
       }
     ]
   },
-  "externalNodesHash": "1625391094896299807"
+  "externalNodesHash": "1168470550464042927"
 }

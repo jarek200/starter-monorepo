@@ -1,0 +1,4 @@
+{
+  "*.{js,jsx,ts,tsx,svelte}": ["pnpm --filter web exec biome check --write"],
+  "*.{json,md,yml,yaml}": ["pnpm --filter web exec biome format --write"]
+}

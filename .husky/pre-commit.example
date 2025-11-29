@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Option 1: Fast checks (recommended for pre-commit)
+pnpm lint-staged && pnpm typecheck
+
+# Option 2: Run tests (slower, but ensures no broken tests)
+# pnpm test
+
+# Option 3: Run only affected tests with Nx (if configured)
+# pnpm nx affected:test
+
+
