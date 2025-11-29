@@ -83,14 +83,18 @@ test.describe('Authentication Flow with XState', () => {
         console.log('State transition check skipped, continuing...');
       }
 
-      // Wait for the "Get Started" button to be visible
-      await page.waitForSelector('button:has-text("Get Started")', { timeout: 5000 });
+      // Wait for the "Get Started" button to be visible and enabled
+      const getStartedButton = page.locator('button:has-text("Get Started")');
+      await getStartedButton.waitFor({ state: 'visible', timeout: 10000 });
+      await getStartedButton.waitFor({ state: 'attached', timeout: 5000 });
 
       // Click "Get Started" button on landing page to navigate to login
-      await Promise.all([
-        page.waitForURL(/.*login/, { timeout: 10000 }),
-        page.click('button:has-text("Get Started")'),
-      ]);
+      // Use waitForNavigation with a promise to handle SvelteKit client-side routing
+      const navigationPromise = page.waitForURL(/.*login/, { timeout: 15000 });
+      await getStartedButton.click();
+
+      // Wait for navigation to complete
+      await navigationPromise;
 
       // Wait for client-side JavaScript to load and hydrate
       await page
