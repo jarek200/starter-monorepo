@@ -3,6 +3,7 @@
     "biomejs.biome",
     "svelte.svelte-vscode",
     "ms-playwright.playwright",
-    "dbaeumer.vscode-eslint"
+    "dbaeumer.vscode-eslint",
+    "statelyai.stately-vscode"
   ]
 }

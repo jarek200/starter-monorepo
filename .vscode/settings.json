@@ -17,6 +17,11 @@
   "[svelte]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.useAliasesForRenames": false,
+  "stately.autoDetectMachines": true,
+  "stately.enableVisualEditor": true,
+  "files.associations": {
+    "*.machine.ts": "typescript"
+  }
 }

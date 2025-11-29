@@ -25,6 +25,9 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "stately:viz": "open https://stately.ai/viz && sleep 2 && cat packages/core/src/machines/auth-flow.machine.ts | pbcopy && echo '✅ Machine code copied to clipboard! Paste it into Stately Visualizer.'",
+    "view:machine": "cat packages/core/src/machines/auth-flow.machine.ts",
+    "copy:machine": "cat packages/core/src/machines/auth-flow.machine.ts | pbcopy && echo '✅ Machine code copied to clipboard!'",
     "prepare": "husky"
   },
   "keywords": [],
