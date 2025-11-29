@@ -22,9 +22,9 @@ import Input from '$lib/components/ui/input.svelte';
 import { getMyProfile } from '$lib/services/graphql';
 import { auth } from '$lib/stores/auth';
 
-const email = $state('');
-const password = $state('');
-const confirmPassword = $state('');
+let email = $state('');
+let password = $state('');
+let confirmPassword = $state('');
 let confirmationCode = $state('');
 let loading = $state(false);
 let error = $state('');

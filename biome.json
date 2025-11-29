@@ -33,13 +33,17 @@
         "noExplicitAny": "warn"
       },
       "style": {
-        "useImportType": "error"
+        "useImportType": "error",
+        "useConst": {
+          "level": "warn",
+          "fix": "unsafe"
+        }
       }
     }
   },
   "overrides": [
     {
-      "includes": ["*.svelte"],
+      "includes": ["**/*.svelte"],
       "linter": {
         "rules": {
           "style": {
