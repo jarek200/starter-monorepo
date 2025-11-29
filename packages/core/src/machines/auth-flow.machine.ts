@@ -46,7 +46,7 @@ export const authFlowMachine = setup({
     events: {} as AuthFlowEvent,
   },
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QEMCuAXAFgMQDYHsB3AOlQDs0swz0BLAY2XUgGIA5AQQDUBJAcQ4AVAKIB9QQHlRAGQl8ebANoAGALqJQAB3yxadfGQ0gAHogBMygIwAOYgFYAbGbvWz1gJwB2D64A0IAE9EOztPYjMAFncPCLtLByiQgF8k-0ocAhIKADdaKCZaMihBfGl8KEKWYTYRACVRAGFa4QARasEeDmkAZRV1JBBtXX1DAdMESLMAZmJ3OymbM29ra081-yCEeYj7aamI5TdLTzMHBxS0jAyiYmpmACdCqAb7yDvaZFxYFm6AVQAhACyPEEMjkCj6RiGeloBiM40iJ1mDhWdmU1imLkxEQ2iGslmIUWingiBwix2UygiFxA6TwN1gqAARgBbPR0IplCpkFiyeRsUR-BoNYTdXpqKE6GFwsbmMzuYjKJwRDEnMzOfZTXEIcnKYiWFULCJuRxrM40umZYiM1nsp5cyp8hSibAcHjSVqQgbQkbwuUKpWRVXqjURLWBYLk4hrKaxzzRWJU86pWlXekkdLvRjMCDsbj8IRiSSiFocboACX+Eg4tRaXq0Ut9sq2K3CygWp3i7lj1js2qm6tm7miGIWxzMx2Tlyw6eImZoDCYrAa0h4DQA0mC+BJfoJ64NG7DRqBxi5bBYOw4uz2+xGdWHo1EVma7FFPFPUzOrTk8gUiiUWmQWBMCZfBkHuXMVzXTc+R3PcJW9Q8ZRPRBLHRPVPDRSkJ0pV9+0HYcR1jSxx0nC00ytAgoG5KAJAwXk5DgwVfmFUVxX6BthiPP0EEsKZh0VSlDmsKkFn429NimQ5o08WN5WUd85hNcivxuKiaLo9AGO3XcXTdD06wQzjpWPExUPQ6MsMONDlDwu8LDMcIn2WUJ3FiVYVOuEh1MgTSWGabphHgjiDy45CzN42SZjmBZ31WKYEipfC7EJYcVmI0j3xSFMyHwCA4CMS0iElMLTPGABaBxtXKlLCLq+rhymTzZ3Iec6GzSASpMnibFJexvBsSw3BRfFtRCMISWHWzrCvbsspTIqsmQXJ8g5YpSnKQouqbFCJmmBxo3bSx3DQuYHCkzwxtCR8ppcWapnm6cvNuGgwEeIoXjeBdPngRDSp404IgOhxlDclwgciE6rsc+IHFCFVnFcc7mqtG02XQNaHVMn1uObY0rp2IaogUqxbJVTwUZuNrFxzbbcd28kwiJNKwxHVZtTDGYHsNUlrHJC9KaWla-3WwDgNA8CIDp8Lxl7HZMW7BwvAcTwSKifCZiJGI4dV87rEF4h1KeTTpbK1DAeIAd8SWVwPDh8NJOcIdhwOdsPAHSw7ANnyIBNv7uubeJ20tuw3JsNERuS52+fcJZ5jmMNsqSIA */
+  /** @xstate-layout N4IgpgJg5mDOIC5QEMCuAXAFgMQDYHsB3AOlQDs0swz0BLAY2XUgGIA5AQQDUBJAcQ4AVAKIB9QQHlRAGQl8ebANoAGALqJQAB3yxadfGQ0gAHogBMygIwAOYgFYAbGbuWAnGdfW7d1wBYANCAAnojeAOzEzsrKHr5mAMwxvgC+yYGUOAQkFAButFBMtGRQgvjS+FBFLMJsIgBKogDCdcIAIjWCPBzSAMoq6kgg2rr6hoOmCGZx8cSudoleYXbKDsoBwaHxvvYJvomuMdbWlg6p6RiZRMTUzABORVCNt5A3tMi4sCw9AKoAQgCyPEEMjkCn6RmGeloBiMEymYTMswc1jCyjC7jsYV8WMCIQQx3s0WUWzm0TsZmRZxAGTwV1gqAARgBbPR0YrlSpkFiyeRsUQ-RqNYQ9PpqCE6KEw8bmDzEFZRMJhZHeVzxBy4xC+SzKYiWXzWeKeZwOMLxSxTKk0rLEenM1kPDlVHkKUTYDg8aRtcGDSGjWEy1xypzLRXKnxqjUIOxa4iK+LRg0+RzWU5pakXWkkDKvRjMCDsbj8IRiSSiVocHoACV+Eg4dVa3q0Er90qjR0ixOUB0W8WO8Uj8TMiNcI6NYS8Dkn8UtGet2ZoDCYrEa0h4jQA0iC+BJvoJG0Nm9CxqAJnZ2xZ9soe33I749rHllY0cir1ewjOsJniLl8oViqVWmQWBMAZfBkFufMVzXTceR3PcxR9Q8pRPRBtWsHUsRHSxDTVVwlnVDYEEHYdR2sMxx0cKcP0uEgCCgTkoAkDBuTkOD+W+QVhVFAYmxGI9-QQbCRzlIltScBxVQRAcYljU1fHcQ1sUNOxqK-OiGKY9AWO3XdXXdT0GwQ3jJWPExUNfWN5NcITcPwyMLERKYRwTYlnEsLFVOtdTIE0lgWh6YR4J4g8+OQszBNNGY5g8eNcJWawB2cYgrLHCcqKpMh8AgOAjCtIhxVC0yJgAWgIvFirsWYRynLx3J8SwThUtM8pIch5zoXNIAKkyBJsO97HHK8EjWMJtX7QjwgfaJYmGi1mtnK4fwKNkSjKCoim6lsUMmBIHFjYk9WJeJUTsibMSmmI-FmlJ5s-a0bjAe5iieF4F3eeBEMKgSKV8PbVlVEcr3Q1VI28RETknFMlSHNxLE8ulGRZdAVsdUzfX41s4lB6NdTclM5jNBqbvOO6rnaxc802jHtq1CJH2icSU1h8a8T2GZjqsk0lRRNV4eyZA8mWh4AKAkCwIgqmwomLxtnjVVvCvM93LMRKZhSsiKMnBxp1umjiHUh5NMlorUJ+4hB2Oc1yS2BrEsq0dUso7W+f1ioYAgI3Pp61sTmJc3w1+o4lWiu2qpHDW0ud1JkiAA */
   id: 'authFlow',
   initial: 'unauthenticated',
   context: {
@@ -63,17 +63,7 @@ export const authFlowMachine = setup({
         },
       },
     },
-    navigatingToLogin: {
-      on: {
-        ENTER_CREDENTIALS: {
-          target: 'enteringCredentials',
-          actions: ({ event, context }) => {
-            context.email = event.email;
-            context.password = event.password;
-          },
-        },
-      },
-    },
+    navigatingToLogin: {},
     enteringCredentials: {
       on: {
         SUBMIT_LOGIN: {
