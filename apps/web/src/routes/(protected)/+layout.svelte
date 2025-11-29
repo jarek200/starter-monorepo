@@ -5,7 +5,7 @@ import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import { auth } from '$lib/stores/auth';
 
-const { children } = $props<{ children: () => any }>();
+const { children } = $props<{ children: import('svelte').Snippet }>();
 
 let checking = $state(true);
 let error = $state('');

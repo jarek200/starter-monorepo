@@ -1,6 +1,6 @@
+import { resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { config } from 'dotenv';
-import { resolve } from 'path';
 
 // Load environment variables from .env file
 config({ path: resolve(__dirname, '.env') });
@@ -30,7 +30,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         // Show browser by default (can override with --headless flag)
-        headless: process.env.CI ? true : false,
+        headless: !!process.env.CI,
       },
     },
     // Uncomment to test on other browsers:

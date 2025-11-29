@@ -21,16 +21,23 @@ async function initializeAmplify(): Promise<void> {
     return;
   }
 
-  if ((window as any).__AMPLIFY_CONFIGURED__) {
+  interface WindowWithAmplify extends Window {
+    __AMPLIFY_CONFIGURED__?: boolean;
+    ENV?: Record<string, string>;
+  }
+
+  const win = window as WindowWithAmplify;
+
+  if (win.__AMPLIFY_CONFIGURED__) {
     isConfigured = true;
     console.log('[Amplify] Already configured, skipping');
     return;
   }
 
-  (window as any).__AMPLIFY_CONFIGURED__ = true;
+  win.__AMPLIFY_CONFIGURED__ = true;
 
   // Get environment variables from window.ENV (injected by SSR) or import.meta.env (Vite dev)
-  const env = (window as any).ENV || import.meta.env;
+  const env = win.ENV || import.meta.env;
 
   if (
     !env.VITE_USER_POOL_ID ||

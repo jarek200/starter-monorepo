@@ -12,10 +12,9 @@ import { generateClient } from 'aws-amplify/api';
 import { ensureAmplifyConfigured } from '../amplify';
 
 // Lazy client initialization
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let client: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let clientPromise: Promise<any> | null = null;
+type GraphQLClient = ReturnType<typeof generateClient>;
+let client: GraphQLClient | null = null;
+let clientPromise: Promise<GraphQLClient> | null = null;
 
 async function getClient() {
   if (client) return client;

@@ -31,8 +31,11 @@ const createAuthStore = () => {
       });
       if (browser) {
         try {
-          (window as any).__amplifySessionCache__ = null;
-        } catch (e) {
+          interface WindowWithCache extends Window {
+            __amplifySessionCache__?: unknown;
+          }
+          (window as WindowWithCache).__amplifySessionCache__ = null;
+        } catch (_e) {
           // Ignore
         }
       }
@@ -48,8 +51,11 @@ const createAuthStore = () => {
       });
       if (browser) {
         try {
-          (window as any).__amplifySessionCache__ = null;
-        } catch (e) {
+          interface WindowWithCache extends Window {
+            __amplifySessionCache__?: unknown;
+          }
+          (window as WindowWithCache).__amplifySessionCache__ = null;
+        } catch (_e) {
           // Ignore
         }
         // Reset GraphQL client to prevent cache leaks when switching accounts

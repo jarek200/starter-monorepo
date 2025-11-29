@@ -3,7 +3,7 @@
 export function addUserResolvers(
   api: ReturnType<typeof import('../api-setup').createApi>,
   dynamoDataSource: ReturnType<typeof import('../api-setup').createDataSource>,
-  tableName: any
+  _tableName: string
 ) {
   // Query: getMyProfile - Get current user's profile
   api.addResolver('Query getMyProfile', {

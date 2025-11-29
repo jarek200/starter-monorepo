@@ -1,10 +1,8 @@
 <script lang="ts">
 import type { Label as LabelPrimitiveType } from 'bits-ui';
 import { Label } from 'bits-ui';
-// biome-ignore lint/correctness/noUnusedImports: Used in template
 import { cn } from '$lib/utils.js';
 
-// biome-ignore lint/correctness/noUnusedVariables: Used in template
 let {
   ref = $bindable(null),
   class: className,

@@ -41,10 +41,11 @@ export default $config({
       transform: {
         server(server) {
           server.runtime = 'nodejs22.x';
-          // biome-ignore lint/suspicious/noExplicitAny: SST server.nodejs type is not fully typed
           if (!server.nodejs) {
+            // biome-ignore lint/suspicious/noExplicitAny: SST types incomplete
             server.nodejs = {} as any;
           }
+          // biome-ignore lint/suspicious/noExplicitAny: SST types incomplete
           const nodejs = server.nodejs as any;
 
           const existingExternal = (

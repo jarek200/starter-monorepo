@@ -7,15 +7,23 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "experimentalScannerIgnores": [
-      "node_modules",
-      "dist",
-      "build",
-      ".svelte-kit",
-      ".sst",
-      "coverage",
-      "*.config.js",
-      "*.config.ts"
+    "includes": [
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.svelte",
+      "**/*.json",
+      "**/*.jsonc",
+      "**/*.css",
+      "!!**/node_modules",
+      "!!**/dist",
+      "!!**/build",
+      "!!**/.svelte-kit",
+      "!!**/.sst",
+      "!!**/coverage",
+      "!!**/*.config.js",
+      "!!**/*.config.ts"
     ]
   },
   "formatter": {
@@ -52,7 +60,8 @@
           },
           "correctness": {
             "useExhaustiveDependencies": "off",
-            "noUnusedImports": "off"
+            "noUnusedImports": "off",
+            "noUnusedVariables": "off"
           }
         }
       },

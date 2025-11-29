@@ -12,10 +12,7 @@
 
 import { expect, test } from '@playwright/test';
 import { createActor } from 'xstate';
-import {
-  type AuthFlowEvent,
-  authFlowMachine,
-} from '../packages/core/src/machines/auth-flow.machine';
+import { authFlowMachine } from '../packages/core/src/machines/auth-flow.machine';
 
 // Environment variables are loaded by playwright.config.ts
 
@@ -79,7 +76,7 @@ test.describe('Authentication Flow with XState', () => {
       actor.send({ type: 'NAVIGATE_TO_LOGIN' });
       try {
         await waitForState('navigatingToLogin', 2000);
-      } catch (e) {
+      } catch (_e) {
         console.log('State transition check skipped, continuing...');
       }
 
@@ -164,7 +161,7 @@ test.describe('Authentication Flow with XState', () => {
       });
       try {
         await waitForState('enteringCredentials', 2000);
-      } catch (e) {
+      } catch (_e) {
         console.log('State transition check skipped, continuing...');
       }
 
@@ -182,7 +179,7 @@ test.describe('Authentication Flow with XState', () => {
       actor.send({ type: 'SUBMIT_LOGIN' });
       try {
         await waitForState('submittingLogin', 2000);
-      } catch (e) {
+      } catch (_e) {
         console.log('State transition check skipped, continuing...');
       }
 
@@ -289,7 +286,7 @@ test.describe('Authentication Flow with XState', () => {
     }
   });
 
-  test('XState machine state transitions', async ({ page }) => {
+  test('XState machine state transitions', async () => {
     const actor = createActor(authFlowMachine);
     actor.start();
 
@@ -391,7 +388,7 @@ test.describe('Authentication Flow with XState', () => {
     }
   });
 
-  test('return to landing state transitions', async ({ page }) => {
+  test('return to landing state transitions', async () => {
     const actor = createActor(authFlowMachine);
     actor.start();
 

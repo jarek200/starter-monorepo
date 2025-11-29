@@ -4,6 +4,7 @@
 </svelte:head>
 
 <script lang="ts">
+import type { User as GraphQLUser } from '@sst-monorepo/graphql';
 import { signOut } from 'aws-amplify/auth';
 import { onMount } from 'svelte';
 import { goto } from '$app/navigation';
@@ -37,7 +38,7 @@ $effect(() => {
 
 const user = $derived(authState.user);
 
-let profile = $state<any>(null);
+let profile = $state<GraphQLUser | null>(null);
 let loading = $state(true); // Start with loading true to prevent flash
 let saving = $state(false);
 let error = $state('');
@@ -61,8 +62,9 @@ async function loadProfile() {
     profile = data;
     name = data?.name || '';
     bio = data?.bio || '';
-  } catch (err: any) {
-    error = err.message || 'Failed to load profile';
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to load profile';
+    error = errorMessage;
   } finally {
     loading = false;
   }
@@ -94,8 +96,9 @@ async function saveProfile() {
     setTimeout(() => {
       success = '';
     }, 3000);
-  } catch (err: any) {
-    error = err.message || 'Failed to update profile';
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';
+    error = errorMessage;
   } finally {
     saving = false;
   }
