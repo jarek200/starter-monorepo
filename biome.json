@@ -23,7 +23,8 @@
       "!!**/.sst",
       "!!**/coverage",
       "!!**/*.config.js",
-      "!!**/*.config.ts"
+      "!!**/*.config.ts",
+      "!!**/generated"
     ]
   },
   "formatter": {
