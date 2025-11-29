@@ -81,6 +81,9 @@ $RECYCLE.BIN/
 .cache
 .turbo
 
+# Nx
+.nx
+
 # AWS
 .aws-sam
 samconfig.toml
