@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { Label as LabelPrimitive } from 'bits-ui';
-// biome-ignore lint/correctness/noUnusedImports: Used in template (line 12)
+// biome-ignore lint/correctness/noUnusedImports: Used in template (line 10)
 import { cn } from '$lib/utils.js';
 
 // biome-ignore lint/correctness/noUnusedVariables: Used in template
