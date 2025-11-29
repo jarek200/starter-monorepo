@@ -63,7 +63,17 @@ export const authFlowMachine = setup({
         },
       },
     },
-    navigatingToLogin: {},
+    navigatingToLogin: {
+      on: {
+        ENTER_CREDENTIALS: {
+          target: 'enteringCredentials',
+          actions: ({ event, context }) => {
+            context.email = event.email;
+            context.password = event.password;
+          },
+        },
+      },
+    },
     enteringCredentials: {
       on: {
         SUBMIT_LOGIN: {

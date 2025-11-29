@@ -15,11 +15,23 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
+    // Enable video recording for visual feedback
+    video: 'retain-on-failure',
+    // Take screenshots on failure
+    screenshot: 'only-on-failure',
+    // Slow down actions to make them more visible
+    actionTimeout: 10000,
+    // Show browser in UI mode (the preview in Playwright UI)
+    headless: false,
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Show browser by default (can override with --headless flag)
+        headless: process.env.CI ? true : false,
+      },
     },
     // Uncomment to test on other browsers:
     // {

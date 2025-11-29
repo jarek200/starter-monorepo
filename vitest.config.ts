@@ -7,11 +7,10 @@ export default defineConfig({
     environment: 'node',
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: [
-      'node_modules',
-      'dist',
-      '.svelte-kit',
-      '.sst',
-      'e2e/**',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.svelte-kit/**',
+      '**/.sst/**',
       '**/e2e/**',
       '**/*.machine.test.ts', // Exclude XState machine tests until xstate is installed
     ],

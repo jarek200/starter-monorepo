@@ -26,8 +26,8 @@ test.describe('Authentication Flow with XState', () => {
   const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 
   test.beforeEach(async ({ page }) => {
-    // Ensure we start from a clean state
-    await page.goto('/login');
+    // Start from landing page (realistic user flow)
+    await page.goto('/');
   });
 
   test('complete login and logout flow using XState', async ({ page }) => {
@@ -68,8 +68,12 @@ test.describe('Authentication Flow with XState', () => {
     };
 
     try {
-      // State: unauthenticated
+      // State: unauthenticated (start on landing page)
       expect(actor.getSnapshot().value).toBe('unauthenticated');
+
+      // Verify we're on landing page
+      await expect(page).toHaveURL('/', { timeout: 5000 });
+      await expect(page.locator('h1')).toContainText(/SST Monorepo Starter/i);
 
       // Event: NAVIGATE_TO_LOGIN
       actor.send({ type: 'NAVIGATE_TO_LOGIN' });
@@ -79,8 +83,11 @@ test.describe('Authentication Flow with XState', () => {
         console.log('State transition check skipped, continuing...');
       }
 
-      // Navigate to login page - skip SSR, wait for client-side hydration
-      await page.goto('/login', { waitUntil: 'networkidle', timeout: 15000 });
+      // Click "Get Started" button on landing page to navigate to login
+      await page.click('button:has-text("Get Started"), a[href="/login"]');
+
+      // Wait for navigation to login page
+      await page.waitForURL(/.*login/, { timeout: 10000 });
 
       // Wait for client-side JavaScript to load and hydrate
       await page

@@ -8,50 +8,20 @@ The `auth-flow.machine.ts` defines the authentication flow state machine used in
 
 ## Visualization
 
-### Official XState Inspector (Recommended)
+### VS Code Extension (Recommended)
 
-Use the **official** `@statelyai/inspect` package for local visualization:
+Use the **Stately Visual Editor** extension:
 
-```bash
-# Run the inspector example
-pnpm inspect:xstate
-```
+1. Open `auth-flow.machine.ts`
+2. Press `Cmd+Shift+P` → "Open Visual Editor"
+3. Execute the machine by sending events in the visual editor
 
-This will:
-1. Open a browser window with the XState Inspector
-2. Show your state machine in real-time
-3. Display state transitions as they happen
-
-### Using in Your Code
-
-```typescript
-import { createActor } from 'xstate';
-import { authFlowMachine, setupInspector } from '@sst-monorepo/core';
-
-// Setup inspector (opens automatically)
-const inspector = setupInspector();
-
-// Create actor with inspector
-const actor = createActor(authFlowMachine, {
-  inspect: inspector.inspect,
-});
-
-actor.start();
-
-// Send events and watch them in the inspector window
-actor.send({ type: 'NAVIGATE_TO_LOGIN' });
-```
-
-### Alternative: Stately Visualizer (Online)
-
-If you prefer the online visualizer:
+### Alternative: Online Visualizer
 
 1. Go to https://stately.ai/viz
 2. Copy the machine code from `auth-flow.machine.ts`
-3. Paste into the visualizer
+3. Paste into the visualizer and click "Simulate"
 
 ## Files
 
-- `auth-flow.machine.ts` - Main authentication flow machine
-- `use-inspector.ts` - Inspector setup utility
-- `inspect-example.ts` - Example usage of the inspector
+- `auth-flow.machine.ts` - Main authentication flow machine (XState v5)
