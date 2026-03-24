@@ -84,3 +84,6 @@ $RECYCLE.BIN/
 # Misc
 *.pem
 .pnpm-store
+
+# Nx Cache
+.nx/
