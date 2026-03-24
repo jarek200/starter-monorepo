@@ -1,12 +1,15 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 
+import { stageConfig } from './stage-config';
+
 export function createUserProfile(
   table: ReturnType<typeof import('./storage').createStorage>['table']
 ) {
-  // Lambda: Create user profile on signup
   const createUserProfileFunction = new sst.aws.Function('CreateUserProfile', {
     handler: 'packages/functions/src/auth/create-user-profile.handler',
     runtime: 'nodejs22.x',
+    memory: stageConfig.lambda.memory,
+    timeout: stageConfig.lambda.timeout,
     link: [table],
     nodejs: {
       loader: {

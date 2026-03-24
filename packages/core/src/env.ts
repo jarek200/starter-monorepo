@@ -16,9 +16,8 @@ export const envSchema = z.object({
   // AppSync
   VITE_GRAPHQL_ENDPOINT: z.string().url().optional(),
 
-  // DynamoDB
-  VITE_TABLE_NAME: z.string().optional(),
-  TABLE_NAME: z.string().optional(), // Server-side Lambda env var
+  // DynamoDB (server-side only, set via SST link)
+  TABLE_NAME: z.string().optional(),
 
   // Stage - accepts any string to support custom SST stage names (feature branches, PR previews, etc.)
   VITE_STAGE: z.string().optional(),

@@ -1,8 +1,5 @@
+# DO NOT add platform/* — Webiny uses its own Yarn workspace and
+# mixing it into the pnpm graph causes toolchain conflicts.
 packages:
   - 'apps/*'
   - 'packages/*'
-
-
-
-
-

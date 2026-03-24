@@ -7,8 +7,6 @@ node_modules
 coverage
 *.lcov
 .nyc_output
-test-results/
-playwright-report/
 
 # Production builds
 dist
@@ -82,14 +80,6 @@ $RECYCLE.BIN/
 *.tmp
 *.temp
 .cache
-.turbo
-
-# Nx
-.nx
-
-# AWS
-.aws-sam
-samconfig.toml
 
 # Misc
 *.pem

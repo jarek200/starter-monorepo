@@ -11,8 +11,6 @@ export default defineConfig({
       '**/dist/**',
       '**/.svelte-kit/**',
       '**/.sst/**',
-      '**/e2e/**',
-      '**/*.machine.test.ts', // Exclude XState machine tests until xstate is installed
     ],
     coverage: {
       provider: 'v8',

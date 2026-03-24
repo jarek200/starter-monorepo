@@ -1,8 +1,3 @@
 # Prevent line ending issues
 * text=auto eol=lf
 
-# Protect Svelte files from auto-modification
-*.svelte text
-*.svelte -diff
-*.svelte merge=ours
-

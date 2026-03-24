@@ -1,244 +1,313 @@
 # SST Monorepo Starter
 
-> 🚀 **Template Repository** - Click "Use this template" to create a new project from this starter
+> Template Repository — click "Use this template" to create a new project from this starter
 
-A modern, production-ready starter template for building full-stack applications with:
+A modern, production-ready platform template for building full-stack serverless applications on AWS with multi-environment support.
 
 - **Frontend**: SvelteKit 2 + TypeScript + Tailwind CSS
 - **Backend**: AWS AppSync (GraphQL) with JavaScript resolvers
 - **Database**: DynamoDB (single-table design)
 - **Authentication**: AWS Cognito User Pools
-- **Infrastructure**: SST v3 (Ion) with Pulumi
-- **Monorepo**: Nx + pnpm workspaces
+- **Infrastructure**: SST v4 with Pulumi
+- **CMS**: Webiny v6 (headless, serverless, isolated under `platform/webiny`)
+- **Monorepo**: pnpm workspaces (Webiny uses its own Yarn workspace)
 
-## Features
+## Architecture overview
 
-- ✅ User authentication (signup, login, email verification)
-- ✅ Landing page with modern design
-- ✅ Protected routes with authentication guards
-- ✅ Dashboard with profile management
-- ✅ GraphQL API with AppSync JavaScript resolvers
-- ✅ Responsive UI with Tailwind CSS
-- ✅ Type-safe GraphQL queries and mutations
+```
+pnpm workspace (root)
+├── apps/web          SvelteKit frontend (SST SvelteKit component)
+├── packages/         Shared code (core, graphql, functions)
+├── infra/            SST infrastructure modules (AppSync, Cognito, DynamoDB)
+└── sst.config.ts     SST v4 config — stage-aware, multi-account
+
+Yarn workspace (isolated)
+└── platform/webiny   Webiny v6 CMS — deployed per env alongside SST
+```
+
+## Environments
+
+Three first-class stages, each targeting an isolated AWS account:
+
+| Stage   | Purpose                     | AWS account  | Removal policy |
+|---------|-----------------------------|--------------|----------------|
+| `dev`   | Daily development work      | dev account  | `remove`       |
+| `stage` | Pre-production validation   | stage account| `remove`       |
+| `prod`  | Live production             | prod account | `retain`       |
+
+Any other stage name (e.g. `jarek`, `feature-x`) falls back to the `dev` AWS profile and
+uses the `remove` policy — safe for short-lived personal stacks.
 
 ## Prerequisites
 
-- **Node.js 24** (use nvm: `nvm install 24`)
-- **pnpm**: `npm install -g pnpm`
-- **AWS CLI** configured with credentials
-- **AWS Account** with appropriate permissions
+- **Node.js 22** (`nvm install 22`)
+- **pnpm** (`npm install -g pnpm`)
+- **AWS CLI** and SSO configured (see [Local AWS setup](#local-aws-setup))
+- **Yarn** (`npm install -g yarn`) — for Webiny only
 
 ## Quick Start
 
-### 1. Clone and Setup
+### 1. Install dependencies
 
 ```bash
-# Clone your new project (created from template)
-git clone https://github.com/your-username/your-project.git
-cd your-project
-
-# Run the setup script to customize project name
-chmod +x scripts/setup-new-project.sh
-./scripts/setup-new-project.sh "Your Project Name"
-
-# Or manually install dependencies
 pnpm install
 ```
 
-### 2. Configure AWS
+### 2. Local AWS setup
 
-Ensure your AWS CLI is configured:
+Follow [SST's AWS accounts guide](https://sst.dev/docs/aws-accounts) to set up AWS Organizations
+with SSO. Then configure `~/.aws/config`:
 
-```bash
-aws configure
-# Or use AWS_PROFILE environment variable
-export AWS_PROFILE=your-profile
+```ini
+[sso-session acme]
+sso_start_url  = https://acme.awsapps.com/start
+sso_region     = us-east-1
+
+[profile acme-dev]
+sso_session    = acme
+sso_account_id = 111111111111
+sso_role_name  = AdministratorAccess
+region         = us-east-1
+
+[profile acme-stage]
+sso_session    = acme
+sso_account_id = 222222222222
+sso_role_name  = AdministratorAccess
+region         = us-east-1
+
+[profile acme-prod]
+sso_session    = acme
+sso_account_id = 333333333333
+sso_role_name  = AdministratorAccess
+region         = us-east-1
 ```
 
-### 3. Start Development (Recommended: SST Dev Mode)
-
-**Use `pnpm dev`** - This automatically handles environment variables and provides hot reload:
+Log in:
 
 ```bash
-pnpm dev
+pnpm sso
+# Or: aws sso login --sso-session=acme
 ```
 
-This will:
-- Deploy your infrastructure to AWS (first time only)
-- Start the development server with hot reload
-- Automatically inject environment variables (no `.env` file needed!)
-- Watch for code changes and redeploy automatically
+Rename the profile keys in `sst.config.ts` (`STAGE_PROFILES` map at the top) to match your
+actual profile names.
 
-**That's it!** Your app will be available at the URL shown in the terminal.
-
-**Alternative: Local-Only Development** (requires manual `.env` setup):
-```bash
-# First, deploy once to get environment variables
-pnpm sst deploy
-# Copy values from deployment output to .env file
-pnpm dev:local
-```
-
-**Note**: `.env` file is only needed for `dev:local`. Use `pnpm dev` to avoid manual setup.
-
-### 4. Deploy Infrastructure (Production)
-
-Deploy the infrastructure to AWS:
+### 3. Start development
 
 ```bash
-pnpm sst deploy
+pnpm dev   # SST dev multiplexer: deploys infra + starts SvelteKit with hot reload
 ```
 
-This will:
-- Create DynamoDB table with 2 GSIs
-- Set up Cognito User Pool
-- Create AppSync GraphQL API
-- Deploy SvelteKit frontend to CloudFront
+`pnpm dev` automatically injects environment variables — no `.env` file needed.
 
-## Project Structure
+### 4. Deploy per environment
+
+```bash
+pnpm deploy:dev    # deploy to dev account
+pnpm deploy:stage  # deploy to stage account
+pnpm deploy:prod   # deploy to prod account
+```
+
+Or with the SST CLI directly:
+
+```bash
+pnpm exec sst deploy --stage dev
+pnpm exec sst deploy --stage stage
+pnpm exec sst deploy --stage prod
+```
+
+## Project structure
 
 ```
 sst-monorepo/
 ├── apps/
-│   └── web/                    # SvelteKit frontend
+│   └── web/                      SvelteKit frontend
 │       ├── src/
 │       │   ├── lib/
-│       │   │   ├── components/ui/  # UI components
-│       │   │   ├── services/        # GraphQL service
-│       │   │   ├── stores/         # Svelte stores (auth)
-│       │   │   └── utils/         # Utility functions
+│       │   │   ├── components/ui/  UI components
+│       │   │   ├── services/       GraphQL service
+│       │   │   ├── stores/         Svelte stores (auth)
+│       │   │   └── utils/          Utility functions
 │       │   └── routes/
-│       │       ├── +page.svelte    # Landing page
-│       │       ├── login/          # Login/signup page
-│       │       └── (protected)/    # Protected routes
-│       │           └── dashboard/  # Dashboard page
+│       │       ├── +page.svelte    Landing page
+│       │       ├── login/          Login/signup page
+│       │       └── (protected)/    Protected routes
+│       │           └── dashboard/  Dashboard page
 │       └── package.json
 ├── packages/
-│   ├── core/                   # Shared types and utilities
-│   ├── functions/              # Lambda functions
-│   │   └── auth/               # User profile creation
-│   └── graphql/                # GraphQL schema
-├── infra/                      # Infrastructure modules
-│   ├── storage.ts              # DynamoDB table
-│   ├── functions.ts            # Lambda function definitions
-│   ├── auth.ts                 # Cognito User Pool setup
+│   ├── core/                     Shared types and utilities
+│   ├── functions/                Lambda functions
+│   │   └── auth/                 User profile creation trigger
+│   └── graphql/                  GraphQL schema + codegen output
+├── infra/                        SST infrastructure modules
+│   ├── storage.ts                DynamoDB table
+│   ├── functions.ts              Lambda function definitions
+│   ├── auth.ts                   Cognito User Pool
 │   └── api/
-│       ├── api-setup.ts        # AppSync API & data sources
-│       └── resolvers/           # GraphQL resolvers
+│       ├── api-setup.ts          AppSync API and data sources
+│       └── resolvers/            GraphQL resolvers (JS, AppSync-native)
 │           ├── index.ts
-│           └── users.ts         # User resolvers
-├── sst.config.ts              # Main SST config
-└── package.json               # Root package.json
+│           └── users.ts
+├── platform/
+│   └── webiny/                   Webiny v6 CMS (Yarn workspace, isolated)
+│       ├── README.md             Webiny setup and deploy guide
+│       ├── Makefile              Convenient per-env deploy commands
+│       └── .env.example          Environment variable template
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                Quality gate (lint, typecheck, test, build)
+│       └── deploy.yml            Label-driven deploy pipeline
+├── sst.config.ts                 SST v4 config (stages, accounts, resources)
+└── package.json
 ```
 
-## GraphQL Schema
+## SST v4 migration notes
 
-The starter includes a minimal schema with:
+This project uses **SST v4** (upgraded from v3/Ion).
 
-- **User**: User profile information
+Key changes from v3:
+- Pulumi AWS provider bumped from v6 to v7 (already reflected in `package.json`)
+- No breaking changes to SST components used here (Dynamo, CognitoUserPool, AppSync, Function, SvelteKit)
+- `svelte-kit-sst` stays at `"2"` (the v3 package is experimental and built against SvelteKit v1)
 
-### Queries
-
-- `getMyProfile: User` - Get current user's profile
-
-### Mutations
-
-- `updateUserProfile(input: UpdateUserInput!): User` - Update user profile
-
-## GraphQL Code Generation
-
-This project uses [GraphQL Code Generator](https://the-guild.dev/graphql/codegen) to automatically generate TypeScript types from the GraphQL schema. This ensures type safety and keeps your code in sync with your schema.
-
-### Generating Types
-
-After updating `packages/graphql/schema.graphql`, run:
+If you have existing stacks deployed under SST v3, migrate them before deploying with v4:
 
 ```bash
-pnpm codegen
+# 1. Review what will change
+pnpm exec sst diff --stage dev
+
+# 2. Migrate state (run once per stage, do NOT use --target)
+pnpm exec sst refresh --stage dev
+pnpm exec sst refresh --stage stage
+# For stages that only ever ran under sst dev:
+pnpm exec sst refresh --stage dev --dev
+
+# 3. Deploy as normal
+pnpm deploy:dev
 ```
 
-This generates TypeScript types in `packages/graphql/generated/index.ts` that you can import:
+## GitHub Actions and label-driven deployment
+
+CI runs automatically on every PR and push (lint, typecheck, test, build).
+
+Deployment is triggered by **adding labels to an open PR**:
+
+```
+Open PR
+  └─ add label "deploy:dev"   → deploys SST + Webiny to dev account
+       └─ passes → add label "deploy:stage" → deploys to stage account
+            └─ passes → add label "deploy:prod"  → deploys to prod account
+                 └─ passes → merge PR
+```
+
+The `deploy:stage` job checks that `deploy:dev` is present on the PR before running.
+The `deploy:prod` job checks that both `deploy:dev` and `deploy:stage` are present.
+The `prod` GitHub Environment additionally requires a human reviewer to approve.
+
+### One-time GitHub setup
+
+1. Create three GitHub Environments: `dev`, `stage`, `prod`
+   - On `prod`: enable **Required reviewers**
+2. Add `AWS_ROLE_ARN` secret to each Environment:
+   - `dev` → `arn:aws:iam::111111111111:role/GHActions-Dev`
+   - `stage` → `arn:aws:iam::222222222222:role/GHActions-Stage`
+   - `prod` → `arn:aws:iam::333333333333:role/GHActions-Prod`
+3. Create IAM OIDC provider in each AWS account and a role with this trust condition:
+   ```json
+   "token.actions.githubusercontent.com:sub":
+     "repo:<org>/<repo>:environment:<env-name>"
+   ```
+
+No long-lived AWS credentials are stored in GitHub secrets.
+
+### Create the PR labels
+
+In your GitHub repo, create these labels (Settings → Labels):
+
+| Label           | Colour suggestion | Purpose                   |
+|-----------------|-------------------|---------------------------|
+| `deploy:dev`    | `#0075ca`         | Trigger dev deployment    |
+| `deploy:stage`  | `#e4e669`         | Trigger stage deployment  |
+| `deploy:prod`   | `#d93f0b`         | Trigger prod deployment   |
+
+## Webiny v6 CMS
+
+Webiny lives under `platform/webiny/` in its own Yarn workspace.
+
+First-time setup:
+
+```bash
+cd platform/webiny
+npx create-webiny-project@latest .
+yarn webiny deploy --env dev
+```
+
+See [`platform/webiny/README.md`](platform/webiny/README.md) for the full setup guide, env wiring,
+and per-environment deploy commands.
+
+## GraphQL code generation
+
+After updating `packages/graphql/schema.graphql`:
+
+```bash
+pnpm codegen         # one-time
+pnpm codegen:watch   # watch mode during development
+```
+
+Generated types are imported as:
 
 ```typescript
 import type { User, UpdateUserInput } from '@sst-monorepo/graphql';
 ```
 
-### Watch Mode
+## Environment variables
 
-For development, you can run codegen in watch mode to automatically regenerate types when the schema changes:
+`pnpm dev` (SST dev mode) injects all variables automatically — no `.env` needed.
 
-```bash
-pnpm codegen:watch
-```
+For local-only development (`pnpm dev:local`), create a `.env` file in the repo root and fill in
+the values from a previous `pnpm deploy:dev` output (see the `environment` block in `sst.config.ts`
+for the variable names).
 
-### Benefits
+## Database schema (DynamoDB — single-table design)
 
-- ✅ **Type Safety**: TypeScript catches schema mismatches at compile time
-- ✅ **Auto-completion**: IDE autocomplete for all GraphQL types
-- ✅ **Refactoring**: Rename fields in schema and TypeScript will show all places that need updating
-- ✅ **Documentation**: Generated types serve as living documentation
+**Primary key**: `PK` (partition) + `SK` (sort)
 
-## Environment Variables
-
-### Recommended: SST Dev Mode (No .env file needed!)
-
-When using `pnpm dev`, SST automatically injects environment variables. No manual setup required!
-
-### Local Development Only
-
-If using `pnpm dev:local`, copy `.env.example` to `.env` and fill in values from SST deployment output:
-
-```bash
-cp .env.example .env
-```
-
-## Database Schema (DynamoDB)
-
-Single table design with 2 Global Secondary Indexes (GSIs):
-
-**Primary Key**: `PK` (partition key) + `SK` (sort key)
-
-**GSI1**: User-centric queries  
-**GSI2**: Global queries
+**GSI1**: `GSI1PK` + `GSI1SK` — user-centric queries  
+**GSI2**: `GSI2PK` + `GSI2SK` — global queries
 
 Entity patterns:
-- `USER#${userId}` / `PROFILE` - User profiles
+- `USER#${userId}` / `PROFILE` — user profiles
 
-## Architecture Highlights
+## Adding new features
 
-- **Serverless**: No servers to manage
-- **Direct Resolvers**: Simple DynamoDB resolvers for CRUD operations
-- **Single Table**: Optimized DynamoDB access patterns with GSIs
-- **Scalable**: Auto-scales with traffic
-- **Cost-effective**: Pay only for what you use
-
-## Adding New Features
-
-### 1. Add a new GraphQL type
+### New GraphQL type
 
 1. Update `packages/graphql/schema.graphql`
-2. **Run `pnpm codegen`** to regenerate TypeScript types from the schema
-3. Add resolvers in `infra/api/resolvers/`
-4. Add service functions in `apps/web/src/lib/services/graphql.ts` (types are now auto-generated!)
+2. Run `pnpm codegen`
+3. Add resolver in `infra/api/resolvers/`
+4. Add service method in `apps/web/src/lib/services/graphql.ts`
 
-### 2. Add a new Lambda function
+### New Lambda function
 
-1. Create function in `packages/functions/src/`
-2. Add function definition in `infra/functions.ts`
-3. Link it in `sst.config.ts`
+1. Create handler in `packages/functions/src/`
+2. Define function in `infra/functions.ts`
+3. Link it via `link:` in `sst.config.ts`
 
-## Cost Estimate
+## Cost estimate
 
-For a new app with **<1000 users**:
+For a new app with fewer than 1,000 users:
 
-| Service | Free Tier | Est. Cost |
-|---------|-----------|-----------|
-| DynamoDB | 25 GB storage, 25 read/write units | $0-5/month |
-| AppSync | 250K query/mutation operations | $0-10/month |
-| Cognito | 50K MAU | $0 |
-| Lambda | 1M requests, 400K GB-seconds | $0 |
-| CloudFront | 1 TB data transfer | $0-5/month |
-| **Total** | | **$0-20/month** |
+| Service    | Free tier                               | Estimated cost |
+|------------|-----------------------------------------|----------------|
+| DynamoDB   | 25 GB storage, 25 R/W units             | $0–5/month     |
+| AppSync    | 250K query/mutation operations          | $0–10/month    |
+| Cognito    | 50K MAU                                 | $0             |
+| Lambda     | 1M requests, 400K GB-seconds            | $0             |
+| CloudFront | 1 TB data transfer                      | $0–5/month     |
+| **Total**  |                                         | **$0–20/month**|
+
+Webiny adds its own resources (Lambda, DynamoDB, Elasticsearch optional, CloudFront) — see
+[Webiny pricing docs](https://www.webiny.com/pricing) for details.
 
 ## License
 

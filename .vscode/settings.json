@@ -16,11 +16,6 @@
   },
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.useAliasesForRenames": false,
-  "stately.autoDetectMachines": true,
-  "stately.enableVisualEditor": true,
-  "files.associations": {
-    "*.machine.ts": "typescript"
-  },
   "cursor.chat.enabled": false,
   "cursor.general.enableAutoSave": false
 }

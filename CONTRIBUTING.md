@@ -24,8 +24,7 @@
 We use [Biome](https://biomejs.dev/) for linting and formatting.
 
 - **Check**: `pnpm lint`
-- **Fix**: `pnpm lint:fix`
-- **Format**: `pnpm format`
+- **Fix + format**: `pnpm lint:fix`
 
 ### Type Checking
 
@@ -36,7 +35,6 @@ We use [Biome](https://biomejs.dev/) for linting and formatting.
 - **Unit tests**: `pnpm test`
 - **Watch mode**: `pnpm test:watch`
 - **Coverage**: `pnpm test:coverage`
-- **E2E tests**: `pnpm test:e2e`
 
 ## Git Workflow
 
@@ -55,9 +53,14 @@ sst-monorepo/
 │   └── web/              # SvelteKit frontend
 ├── packages/
 │   ├── core/             # Shared types and utilities
-│   └── graphql/          # GraphQL schema
-├── infra/                # Infrastructure code
-└── e2e/                  # End-to-end tests
+│   ├── functions/        # Lambda functions (auth triggers, etc.)
+│   └── graphql/          # GraphQL schema + codegen output
+├── infra/                # SST infrastructure modules
+├── platform/
+│   └── webiny/           # Webiny CMS (Yarn workspace, isolated from pnpm)
+└── .github/workflows/
+    ├── ci.yml            # Quality gate (lint, typecheck, test, build)
+    └── deploy.yml        # Label-driven deploy pipeline (dev → stage → prod)
 ```
 
 ## Adding New Features
@@ -65,8 +68,8 @@ sst-monorepo/
 ### Adding a new GraphQL type
 
 1. Update `packages/graphql/schema.graphql`
-2. Add resolvers in `infra/api/resolvers/`
-3. Add types in `packages/core/src/types/`
+2. Run `pnpm codegen`
+3. Add resolvers in `infra/api/resolvers/`
 4. Add service functions in `apps/web/src/lib/services/graphql.ts`
 
 ### Adding a new package
@@ -88,8 +91,6 @@ Use conventional commits format:
 - `chore:` Maintenance tasks
 
 Example: `feat: add user profile page`
-
-
 
 
 
