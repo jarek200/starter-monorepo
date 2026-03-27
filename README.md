@@ -10,7 +10,7 @@ A modern, production-ready platform template for building full-stack serverless 
 - **Authentication**: AWS Cognito User Pools
 - **Infrastructure**: SST v4 with Pulumi
 - **CMS**: Webiny v6 (headless, serverless, isolated under `platform/webiny`)
-- **Monorepo**: pnpm workspaces (Webiny uses its own Yarn workspace)
+- **Monorepo**: pnpm workspaces + Turborepo (task caching) (Webiny uses its own Yarn workspace)
 
 ## Architecture overview
 
@@ -50,6 +50,7 @@ uses the `remove` policy — safe for short-lived personal stacks.
 ### 1. Install dependencies
 
 ```bash
+nvm use
 pnpm install
 ```
 
@@ -116,6 +117,16 @@ pnpm exec sst deploy --stage stage
 pnpm exec sst deploy --stage prod
 ```
 
+## New project checklist
+
+After creating a repository from this template, do these before shipping:
+
+- Rename project metadata in root and app `package.json` files.
+- Update AWS account IDs, profile names, and role ARNs in `sst.config.ts` and GitHub Environments.
+- Create the required PR labels (`deploy:dev`, `deploy:stage`, `deploy:prod`).
+- Review defaults in `infra/` (domain names, auth settings, table names, retention policy).
+- Run `pnpm verify` and make sure CI passes before first deployment.
+
 ## Project structure
 
 ```
@@ -154,10 +165,13 @@ sst-monorepo/
 │       ├── Makefile              Convenient per-env deploy commands
 │       └── .env.example          Environment variable template
 ├── .github/
-│   └── workflows/
-│       ├── ci.yml                Quality gate (lint, typecheck, test, build)
-│       └── deploy.yml            Label-driven deploy pipeline
+│   ├── workflows/
+│   │   ├── ci.yml                Quality gate (lint, typecheck, test, build)
+│   │   └── deploy.yml            Label-driven deploy pipeline
+│   └── dependabot.yml            Automated dependency updates
 ├── sst.config.ts                 SST v4 config (stages, accounts, resources)
+├── turbo.json                    Turborepo task pipeline (build, typecheck, test, codegen)
+├── LICENSE
 └── package.json
 ```
 
@@ -188,7 +202,7 @@ pnpm deploy:dev
 
 ## GitHub Actions and label-driven deployment
 
-CI runs automatically on every PR and push (lint, typecheck, test, build).
+CI runs automatically on every PR and push to `main`/`develop`. Jobs: **lint**, **typecheck** (with codegen drift check), **test**, and **build** — build only runs when lint and tests pass.
 
 Deployment is triggered by **adding labels to an open PR**:
 
@@ -311,4 +325,4 @@ Webiny adds its own resources (Lambda, DynamoDB, Elasticsearch optional, CloudFr
 
 ## License
 
-ISC
+[ISC](LICENSE)

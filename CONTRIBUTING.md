@@ -1,96 +1,110 @@
-# Contributing Guide
+# Contributing
 
-## Development Setup
+Thanks for contributing to this starter monorepo.
 
-1. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
+## Prerequisites
 
-2. **Set up Git hooks** (automatically done via `pnpm prepare`)
-   ```bash
-   pnpm prepare
-   ```
+- Node.js 22 (use `.nvmrc`)
+- pnpm 10+
+- AWS CLI with SSO configured
 
-3. **Start development server**
-   ```bash
-   pnpm dev
-   ```
+## Setup
 
-## Code Quality
-
-### Linting & Formatting
-
-We use [Biome](https://biomejs.dev/) for linting and formatting.
-
-- **Check**: `pnpm lint`
-- **Fix + format**: `pnpm lint:fix`
-
-### Type Checking
-
-- **Type check**: `pnpm typecheck`
-
-### Testing
-
-- **Unit tests**: `pnpm test`
-- **Watch mode**: `pnpm test:watch`
-- **Coverage**: `pnpm test:coverage`
-
-## Git Workflow
-
-1. Create a feature branch from `main`
-2. Make your changes
-3. Ensure all tests pass: `pnpm test`
-4. Ensure linting passes: `pnpm lint`
-5. Commit your changes (pre-commit hooks will run automatically)
-6. Push and create a pull request
-
-## Project Structure
-
-```
-sst-monorepo/
-├── apps/
-│   └── web/              # SvelteKit frontend
-├── packages/
-│   ├── core/             # Shared types and utilities
-│   ├── functions/        # Lambda functions (auth triggers, etc.)
-│   └── graphql/          # GraphQL schema + codegen output
-├── infra/                # SST infrastructure modules
-├── platform/
-│   └── webiny/           # Webiny CMS (Yarn workspace, isolated from pnpm)
-└── .github/workflows/
-    ├── ci.yml            # Quality gate (lint, typecheck, test, build)
-    └── deploy.yml        # Label-driven deploy pipeline (dev → stage → prod)
+```bash
+pnpm install
+pnpm prepare
 ```
 
-## Adding New Features
+## Daily workflow
 
-### Adding a new GraphQL type
+```bash
+pnpm dev
+```
 
-1. Update `packages/graphql/schema.graphql`
-2. Run `pnpm codegen`
-3. Add resolvers in `infra/api/resolvers/`
-4. Add service functions in `apps/web/src/lib/services/graphql.ts`
+## Quality checks
 
-### Adding a new package
+Run all checks before opening a PR:
 
-1. Create directory in `packages/`
-2. Add `package.json` with name `@sst-monorepo/your-package`
-3. Update `pnpm-workspace.yaml` if needed (should auto-detect)
-4. Install dependencies: `pnpm install`
+```bash
+pnpm verify
+```
 
-## Commit Messages
+Equivalent commands:
 
-Use conventional commits format:
-- `feat:` New feature
-- `fix:` Bug fix
-- `docs:` Documentation changes
-- `style:` Code style changes (formatting)
-- `refactor:` Code refactoring
-- `test:` Adding tests
-- `chore:` Maintenance tasks
+```bash
+pnpm codegen
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
 
-Example: `feat: add user profile page`
+## Commit and PR conventions
 
+- Keep commits focused and small.
+- Use conventional commits when possible (`feat:`, `fix:`, `chore:`, `docs:`, etc.).
+- If schema or resolver logic changes, include regenerated GraphQL types.
+- In PR descriptions, include:
+  - what changed
+  - why it changed
+  - how you tested it
 
+## Starter-focused note
 
+If you are using this template for a new project, update project names, AWS account IDs,
+environment configuration, and deployment labels before first production deployment.
+# Contributing
+
+Thanks for contributing to this starter monorepo.
+
+## Prerequisites
+
+- Node.js 22 (use `.nvmrc`)
+- pnpm 10+
+- AWS CLI with SSO configured
+
+## Setup
+
+```bash
+pnpm install
+pnpm prepare
+```
+
+## Daily workflow
+
+```bash
+pnpm dev
+```
+
+## Quality checks
+
+Run all checks before opening a PR:
+
+```bash
+pnpm verify
+```
+
+Equivalent commands:
+
+```bash
+pnpm codegen
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+## Commit and PR conventions
+
+- Keep commits focused and small.
+- Use conventional commits when possible (`feat:`, `fix:`, `chore:`, `docs:`, etc.).
+- If schema or resolver logic changes, include regenerated GraphQL types.
+- In PR descriptions, include:
+  - what changed
+  - why it changed
+  - how you tested it
+
+## Starter-focused note
+
+If you are using this template for a new project, update project names, AWS account IDs,
+environment configuration, and deployment labels before first production deployment.

@@ -87,3 +87,6 @@ $RECYCLE.BIN/
 
 # Nx Cache
 .nx/
+
+# Turborepo
+.turbo
