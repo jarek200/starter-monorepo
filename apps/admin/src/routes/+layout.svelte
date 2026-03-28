@@ -1,7 +1,12 @@
 <script lang="ts">
 import type { Snippet } from 'svelte';
 import { page } from '$app/state';
+import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
 import BrandMark from '$lib/components/brand-mark.svelte';
+import { ensureAmplifyConfigured, isLiveMode } from '$lib/amplify';
+import { auth } from '$lib/stores/auth';
+import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import '../app.css';
 
 interface Props {
@@ -10,8 +15,32 @@ interface Props {
 
 let { children }: Props = $props();
 
-/** Dashboard is list-only (no corner brand). */
+/** Brand mark hidden on dashboard (it has its own header area). */
 let layoutHeaderClass = $derived(page.route.id === '/dashboard' ? 'hidden' : '');
+
+// Auth guard: on protected routes (dashboard), check session
+$effect(() => {
+  if (!browser) return;
+  const isProtected = page.route.id === '/dashboard';
+  if (!isProtected) return;
+  if (!isLiveMode()) return; // Local mock: no guard needed
+
+  (async () => {
+    try {
+      await ensureAmplifyConfigured();
+      const [u, session] = await Promise.all([getCurrentUser(), fetchAuthSession()]);
+      if (u && session.tokens) {
+        auth.setUser({ id: u.userId, email: u.signInDetails?.loginId ?? '' });
+      } else {
+        goto('/?redirect=/dashboard', { replaceState: true });
+      }
+    } catch {
+      goto('/?redirect=/dashboard', { replaceState: true });
+    } finally {
+      auth.setLoading(false);
+    }
+  })();
+});
 </script>
 
 <div class="relative min-h-dvh min-w-0 overflow-x-hidden text-foreground">

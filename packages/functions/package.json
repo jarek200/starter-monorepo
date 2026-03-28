@@ -11,8 +11,15 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.922.0",
+    "@aws-sdk/client-iam": "^3.922.0",
+    "@aws-sdk/client-organizations": "^3.922.0",
+    "@aws-sdk/client-secrets-manager": "^3.922.0",
+    "@aws-sdk/client-sfn": "^3.922.0",
+    "@aws-sdk/client-sts": "^3.922.0",
     "@aws-sdk/lib-dynamodb": "^3.922.0",
     "@sst-monorepo/core": "workspace:*",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1",
     "ulid": "^3.0.1"
   },
   "devDependencies": {

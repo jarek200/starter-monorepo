@@ -57,3 +57,15 @@ export function createDataSource(
 
   return dynamoDataSource;
 }
+
+export function createLambdaDataSource(
+  api: ReturnType<typeof createApi>,
+  lambdaArn: $util.Input<string>
+) {
+  const lambdaDataSource = api.addDataSource({
+    name: 'lambda',
+    lambda: lambdaArn,
+  });
+
+  return lambdaDataSource;
+}

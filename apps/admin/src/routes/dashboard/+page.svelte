@@ -1,9 +1,13 @@
 <script lang="ts">
 import { tick } from 'svelte';
+import { browser } from '$app/environment';
 import { Accordion } from 'bits-ui';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
+import { isLiveMode } from '$lib/amplify';
+import * as api from '$lib/services/graphql';
+import type { Project as ApiProject } from '$lib/services/graphql';
 
 type ProjectRow = {
   id: string;
@@ -40,6 +44,84 @@ type ProjectProvisioning = Record<ProvisioningStepKey, ProvisioningStepState> & 
   progress: number;
 };
 
+// ─── Live mode: API integration ───────────────────────────────────────────────
+
+const liveMode = browser && isLiveMode();
+
+/** Map an API Project → the UI's ProjectRow shape */
+function apiProjectToRow(p: ApiProject): ProjectRow {
+  const phase = p.provisioningPhase;
+  const billing: ProvisioningStepState =
+    phase === 'BILLING' ? 'running' : phase === 'DRAFT' ? 'pending' : 'done';
+  const accounts: ProvisioningStepState =
+    phase === 'ACCOUNTS' ? 'running'
+    : ['BILLING', 'DRAFT'].includes(phase) ? 'pending'
+    : 'done';
+  const github: ProvisioningStepState =
+    phase === 'GITHUB' ? 'running'
+    : ['BILLING', 'ACCOUNTS', 'DRAFT'].includes(phase) ? 'pending'
+    : 'done';
+
+  const isProvisioning = ['BILLING', 'ACCOUNTS', 'GITHUB'].includes(phase);
+  const provisioning: ProjectProvisioning | null | undefined = isProvisioning
+    ? { billing, accounts, github, progress: p.provisioningProgress ?? 0 }
+    : phase === 'DONE' || phase === 'FAILED'
+      ? null
+      : undefined;
+
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    accountNames: p.accounts.map((a) => a.name),
+    createdLabel: shortDate(new Date(p.createdAt)),
+    templateLabel: p.templateRepo ?? '',
+    detailBlurb: p.description ?? '',
+    websiteUrl: p.websiteUrl ?? '',
+    githubUrl: p.githubUrl ?? '',
+    awsSignInUrl: p.awsSignInUrl ?? '',
+    accountHints: p.accounts.map((a) => a.accountId ?? ''),
+    accountCostsLastMonth: p.accounts.map(() => ''),
+    accountCostsCurrent: p.accounts.map(() => ''),
+    accountCostsPredicted: p.accounts.map(() => ''),
+    provisioning,
+  };
+}
+
+/** Load all projects from the real API and merge into local state */
+async function loadProjectsFromApi() {
+  try {
+    const apiProjects = await api.listProjects();
+    projects = apiProjects.map(apiProjectToRow);
+  } catch (err) {
+    console.error('Failed to load projects:', err);
+  }
+}
+
+/** Poll a single project from the API until it reaches DONE or FAILED */
+async function pollProjectUntilDone(projectId: string) {
+  const POLL_INTERVAL = 5_000;
+  for (let i = 0; i < 120; i++) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+    try {
+      const remote = await api.getProject(projectId);
+      if (!remote) break;
+      patchProject(projectId, apiProjectToRow(remote));
+      const phase = remote.provisioningPhase;
+      if (phase === 'DONE' || phase === 'FAILED') break;
+    } catch (err) {
+      console.warn(`Poll error for ${projectId}:`, err);
+    }
+  }
+}
+
+// Load from API on mount (live mode only)
+$effect(() => {
+  if (!browser || !liveMode) return;
+  loadProjectsFromApi();
+});
+
+// ─── Simulation fallback (local-only mode) ────────────────────────────────────
 /** Simulation only: ~2 min end-to-end (AWS account creation pacing). */
 const PROVISION_SIM_BILLING_MS = 38_000;
 const PROVISION_SIM_ACCOUNTS_MS = 72_000;
@@ -432,7 +514,48 @@ function beginProvisioningSimulation(projectId: string) {
 }
 
 function saveDraftProject(id: string) {
-  beginProvisioningSimulation(id);
+  if (liveMode) {
+    saveDraftProjectApi(id);
+  } else {
+    beginProvisioningSimulation(id);
+  }
+}
+
+async function saveDraftProjectApi(id: string) {
+  const row = projects.find((p) => p.id === id);
+  if (!row) return;
+
+  // Immediately show provisioning bar while the API call goes out
+  const initial: ProjectProvisioning = { billing: 'running', accounts: 'pending', github: 'pending', progress: 0 };
+  patchProject(id, { isDraft: false, provisioning: initial });
+
+  try {
+    const created = await api.createProject({
+      name: row.name,
+      slug: row.slug,
+      description: row.detailBlurb || undefined,
+      templateRepo: row.templateLabel || undefined,
+      accounts: row.accountNames.map((name, i) => ({
+        name,
+        email: accountAliasEmail(name, row.slug),
+      })),
+      websiteUrl: row.websiteUrl || undefined,
+      awsSignInUrl: row.awsSignInUrl || undefined,
+    });
+
+    // Replace the temp local row with the API-returned record
+    const serverRow = apiProjectToRow(created);
+    projects = projects.map((p) => (p.id === id ? { ...serverRow, id: created.id } : p));
+
+    // Remove the old temp id from accordion if it was open, open the real id
+    accordionValue = accordionValue.map((v) => (v === id ? created.id : v));
+
+    // Poll for updates
+    pollProjectUntilDone(created.id);
+  } catch (err) {
+    console.error('createProject failed:', err);
+    patchProject(id, { isDraft: true, provisioning: undefined });
+  }
 }
 
 function discardDraftProject(id: string) {
@@ -479,8 +602,22 @@ function startEditingProject(id: string) {
 }
 
 function saveEditingProject() {
+  const id = editingProjectId;
   editingProjectId = null;
   editSnapshot = null;
+
+  if (liveMode && id) {
+    const row = projects.find((p) => p.id === id);
+    if (row) {
+      api.updateProject(id, {
+        name: row.name,
+        description: row.detailBlurb || undefined,
+        websiteUrl: row.websiteUrl || undefined,
+        awsSignInUrl: row.awsSignInUrl || undefined,
+        githubUrl: row.githubUrl || undefined,
+      }).catch((err) => console.warn('updateProject failed:', err));
+    }
+  }
 }
 
 function cancelEditingProject() {

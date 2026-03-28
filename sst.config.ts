@@ -54,9 +54,14 @@ export default $config({
     const { createStorage } = await import('./infra/storage');
     const { createUserProfile } = await import('./infra/functions');
     const { createAuth } = await import('./infra/auth');
-    const { createApi, createDataSource } = await import('./infra/api/api-setup');
+    const { createApi, createDataSource, createLambdaDataSource } = await import('./infra/api/api-setup');
     const { addAllResolvers } = await import('./infra/api/resolvers');
     const { stageConfig } = await import('./infra/stage-config');
+    const {
+      createProvisioningLambdas,
+      createProjectLambda,
+      createProvisioningStateMachine,
+    } = await import('./infra/provisioning');
 
     // Storage: DynamoDB table
     const { table } = createStorage();
@@ -73,47 +78,72 @@ export default $config({
     // Data source: DynamoDB
     const dynamoDataSource = createDataSource(api, table);
 
-    // Resolvers: Add all resolvers
-    addAllResolvers(api, dynamoDataSource, String(table.name));
+    // ─── Provisioning infrastructure ────────────────────────────────────────
+    // GitHub App private key is stored in Secrets Manager.
+    // The ARN is injected via env var at deploy time; create the secret
+    // manually in the management account before first deploy:
+    //   aws secretsmanager create-secret --name /admin-factory/github-private-key \
+    //     --secret-string "$(cat your-app.private-key.pem)"
+    const githubPrivateKeySecretArn =
+      process.env.GITHUB_PRIVATE_KEY_SECRET_ARN ??
+      `arn:aws:secretsmanager:${aws.getRegionOutput().name}:${aws.getCallerIdentityOutput({}).accountId}:secret:/admin-factory/github-private-key`;
 
-    // SvelteKit Site
+    // Provisioning task Lambdas (called by Step Functions)
+    const provisioningFns = createProvisioningLambdas(table, githubPrivateKeySecretArn);
+
+    // Step Functions state machine
+    const stateMachine = createProvisioningStateMachine(provisioningFns);
+
+    // createProject Lambda (AppSync resolver — creates DynamoDB record + starts SFN)
+    const createProjectFn = createProjectLambda(table, stateMachine.arn);
+
+    // Lambda data source for AppSync (used by createProject mutation)
+    const lambdaDataSource = createLambdaDataSource(api, createProjectFn.arn);
+
+    // Resolvers: Add all resolvers (user + project)
+    addAllResolvers(api, dynamoDataSource, lambdaDataSource, String(table.name));
+
+    // ─── SvelteKit apps ──────────────────────────────────────────────────────
+
+    const svelteKitTransform = {
+      server(server: Record<string, unknown>) {
+        server.runtime = 'nodejs22.x';
+        server.memory = stageConfig.sveltekit.memory;
+        // biome-ignore lint/suspicious/noExplicitAny: SST types incomplete
+        if (!server.nodejs) server.nodejs = {} as any;
+        // biome-ignore lint/suspicious/noExplicitAny: SST types incomplete
+        const nodejs = server.nodejs as any;
+        const existingExternal = ((nodejs.esbuild?.external as string[] | undefined) ?? []).slice();
+        nodejs.loader = { ...(nodejs.loader ?? {}), '.node': 'file' };
+        nodejs.esbuild = {
+          ...(nodejs.esbuild ?? {}),
+          external: Array.from(new Set([...existingExternal, 'fsevents', 'lightningcss'])),
+        };
+      },
+    };
+
+    const sharedEnv = {
+      VITE_AWS_REGION: aws.getRegionOutput().name,
+      VITE_USER_POOL_ID: auth.id,
+      VITE_USER_POOL_CLIENT_ID: authClient.id,
+      VITE_GRAPHQL_ENDPOINT: api.url,
+      VITE_STAGE: $app.stage,
+    };
+
+    // Main product site
     const web = new sst.aws.SvelteKit('Web', {
       path: 'apps/web',
       link: [table, auth, authClient, api],
-      transform: {
-        server(server) {
-          server.runtime = 'nodejs22.x';
-          server.memory = stageConfig.sveltekit.memory;
-          if (!server.nodejs) {
-            // biome-ignore lint/suspicious/noExplicitAny: SST types incomplete
-            server.nodejs = {} as any;
-          }
-          // biome-ignore lint/suspicious/noExplicitAny: SST types incomplete
-          const nodejs = server.nodejs as any;
+      transform: svelteKitTransform,
+      environment: sharedEnv,
+    });
 
-          const existingExternal = (
-            (nodejs.esbuild?.external as string[] | undefined) ?? []
-          ).slice();
-          const external = Array.from(new Set([...existingExternal, 'fsevents', 'lightningcss']));
-
-          nodejs.loader = {
-            ...(nodejs.loader ?? {}),
-            '.node': 'file',
-          };
-
-          nodejs.esbuild = {
-            ...(nodejs.esbuild ?? {}),
-            external,
-          };
-        },
-      },
-      environment: {
-        VITE_AWS_REGION: aws.getRegionOutput().name,
-        VITE_USER_POOL_ID: auth.id,
-        VITE_USER_POOL_CLIENT_ID: authClient.id,
-        VITE_GRAPHQL_ENDPOINT: api.url,
-        VITE_STAGE: $app.stage,
-      },
+    // Admin control plane
+    const admin = new sst.aws.SvelteKit('Admin', {
+      path: 'apps/admin',
+      link: [table, auth, authClient, api],
+      transform: svelteKitTransform,
+      environment: sharedEnv,
     });
 
     return {
@@ -122,6 +152,8 @@ export default $config({
       userPoolClientId: authClient.id,
       apiUrl: api.url,
       webUrl: web.url,
+      adminUrl: admin.url,
+      stateMachineArn: stateMachine.arn,
     };
   },
 });
