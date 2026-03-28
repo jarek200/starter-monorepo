@@ -1,7 +1,6 @@
 <script lang="ts">
 import { tick } from 'svelte';
 import { Accordion } from 'bits-ui';
-import BrandMark from '$lib/components/brand-mark.svelte';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
@@ -377,11 +376,11 @@ const accountMobileFieldLabelClass =
 </script>
 
 <svelte:head>
-  <title>Projects — Admin project factory</title>
+  <title>Projects</title>
 </svelte:head>
 
 <main
-  class="min-h-dvh min-w-0 max-w-full overflow-x-hidden px-6 pt-10 pb-16 md:px-10 md:pt-32 md:pb-20 lg:px-14 lg:pt-36"
+  class="min-h-dvh min-w-0 max-w-full overflow-x-hidden px-6 pt-6 pb-16 md:px-10 md:pt-10 md:pb-20 lg:px-14 lg:pt-12"
 >
   {#snippet accountWebsiteLink(p: ProjectRow, accountName: string)}
     {@const href = p.websiteUrl.trim()}
@@ -451,40 +450,12 @@ const accountMobileFieldLabelClass =
   {/snippet}
 
   <div class="mx-auto w-full min-w-0 max-w-7xl">
-    <!-- Small screens: logo + project factory + Add (layout corner mark hidden on this route) -->
-    <div class="flex items-start justify-between gap-3 border-border border-b pb-8 md:hidden">
-      <div class="flex min-w-0 flex-1 items-start gap-2.5">
-        <BrandMark class="size-9 shrink-0 text-foreground" />
-        <h1 class="m-0 min-w-0 font-display leading-tight">
-          <span
-            class="block text-[0.8125rem] font-semibold tracking-[0.22em] text-foreground lowercase"
-          >
-            project
-          </span>
-          <span
-            class="mt-1 block max-w-[12rem] text-[10px] font-medium leading-snug tracking-[0.32em] text-muted-foreground lowercase"
-          >
-            factory
-          </span>
-        </h1>
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        class="shrink-0 rounded-sm border-foreground/40"
-        onclick={addProject}
-      >
-        Add
-      </Button>
-    </div>
     <div
-      class="hidden items-center justify-between gap-4 border-border border-b pb-8 md:flex md:items-end"
+      class="flex items-end justify-between gap-4 border-border border-b pb-6 md:items-center md:pb-8"
     >
-      <div class="min-w-0 flex-1">
-        <h1 class="font-display text-2xl font-semibold tracking-tight text-foreground lowercase md:text-3xl">
-          projects
-        </h1>
-      </div>
+      <h1 class="m-0 min-w-0 font-display text-2xl font-semibold tracking-tight text-foreground lowercase md:text-3xl">
+        projects
+      </h1>
       <Button
         type="button"
         variant="outline"
@@ -495,7 +466,7 @@ const accountMobileFieldLabelClass =
       </Button>
     </div>
 
-    <div class="mt-10 md:mt-12">
+    <div class="mt-8 md:mt-10">
       {#if projects.length === 0}
         <p class="border-border border border-dashed px-4 py-8 text-center text-muted-foreground text-sm">
           No projects yet — use <span class="text-foreground">Add</span> to create one.

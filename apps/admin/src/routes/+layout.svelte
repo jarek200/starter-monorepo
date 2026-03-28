@@ -10,8 +10,8 @@ interface Props {
 
 let { children }: Props = $props();
 
-/** Dashboard puts brand + Add in-page on small screens; avoid duplicate corner mark. */
-let layoutHeaderClass = $derived(page.route.id === '/dashboard' ? 'hidden md:block' : '');
+/** Dashboard is list-only (no corner brand). */
+let layoutHeaderClass = $derived(page.route.id === '/dashboard' ? 'hidden' : '');
 </script>
 
 <div class="relative min-h-dvh min-w-0 overflow-x-hidden text-foreground">
