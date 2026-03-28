@@ -1,4 +1,5 @@
 <script lang="ts">
+import { tick } from 'svelte';
 import { Accordion } from 'bits-ui';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
@@ -7,8 +8,7 @@ import { Label } from '$lib/components/ui/label';
 type ProjectRow = {
   id: string;
   name: string;
-  /** Slack channel or workspace label shown under the name in the table */
-  slackName: string;
+  /** URL-safe id for plus-address email: jwyprzal+{slug}-{account}@gmail.com */
   slug: string;
   accountNames: string[];
   createdLabel: string;
@@ -35,15 +35,14 @@ function slugify(s: string) {
     .replace(/^-|-$/g, '');
 }
 
-/** Plus-address local part + domain — tag is `{project-slug}-{account}` (e.g. `my-app-int`) */
+/** Plus-address: jwyprzal+{slug}-{account}@gmail.com (slug normalized like new-project) */
 const ACCOUNT_EMAIL_LOCAL = 'jwyprzal';
-const ACCOUNT_EMAIL_DOMAIN = 'example.com';
+const ACCOUNT_EMAIL_DOMAIN = 'gmail.com';
 
-function accountAliasEmail(accountName: string, projectSlug: string, projectName: string) {
-  const projectPart =
-    slugify(projectSlug) || slugify(projectName) || 'project';
+function accountAliasEmail(accountName: string, projectSlug: string) {
+  const slugPart = slugify(projectSlug) || 'project';
   const accountPart = slugify(accountName) || 'account';
-  const tag = `${projectPart}-${accountPart}`;
+  const tag = `${slugPart}-${accountPart}`;
   return `${ACCOUNT_EMAIL_LOCAL}+${tag}@${ACCOUNT_EMAIL_DOMAIN}`;
 }
 
@@ -56,7 +55,6 @@ let projects = $state<ProjectRow[]>([
   {
     id: 'seed-acme',
     name: 'Acme platform',
-    slackName: '#acme-platform',
     slug: 'acme-platform',
     accountNames: ['acme-int', 'acme-stage', 'acme-prod'],
     createdLabel: 'Mar 20, 2026',
@@ -71,7 +69,6 @@ let projects = $state<ProjectRow[]>([
   {
     id: 'seed-billing',
     name: 'Billing API',
-    slackName: '#billing-api',
     slug: 'billing-api',
     accountNames: ['billing-dev', 'billing-stage', 'billing-prod'],
     createdLabel: 'Mar 15, 2026',
@@ -90,10 +87,6 @@ const DEFAULT_AWS_SIGNIN_URL = 'https://signin.aws.amazon.com/console';
 const actionLinkClass =
   'inline-flex size-8 shrink-0 items-center justify-center border border-border text-foreground text-xs font-semibold transition-colors hover:bg-muted/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-/** Hover label below draft Save / Cancel icon buttons (below avoids clipping) */
-const draftIconTipClass =
-  'pointer-events-none absolute top-full left-1/2 z-[60] mt-1 -translate-x-1/2 whitespace-nowrap rounded-sm border border-border bg-popover px-1.5 py-px text-[0.65rem] font-medium text-popover-foreground opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100';
-
 /** Which accordion panels are open (bits-ui `type="multiple"`). */
 let accordionValue = $state<string[]>([]);
 
@@ -105,15 +98,12 @@ function clampCount(n: number) {
 }
 
 function addProject() {
-  const n = projects.length + 1;
   const id = crypto.randomUUID();
-  const placeholderSlug = `new-project-${n}`;
   projects = [
     {
       id,
       name: 'New project',
-      slackName: '',
-      slug: placeholderSlug,
+      slug: '',
       accountNames: ['int', 'stage', 'prod'],
       createdLabel: shortDate(new Date()),
       templateLabel: '',
@@ -159,10 +149,89 @@ function discardDraftProject(id: string) {
   accordionValue = accordionValue.filter((v) => v !== id);
 }
 
+let editingProjectId = $state<string | null>(null);
+let editSnapshot = $state<ProjectRow | null>(null);
+
+function cloneProjectRow(row: ProjectRow): ProjectRow {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    accountNames: [...row.accountNames],
+    createdLabel: row.createdLabel,
+    templateLabel: row.templateLabel,
+    detailBlurb: row.detailBlurb,
+    websiteUrl: row.websiteUrl,
+    githubUrl: row.githubUrl,
+    awsSignInUrl: row.awsSignInUrl,
+    accountHints: row.accountHints ? [...row.accountHints] : undefined,
+    isDraft: row.isDraft,
+  };
+}
+
+function startEditingProject(id: string) {
+  const row = projects.find((p) => p.id === id);
+  if (!row || row.isDraft) return;
+  if (editingProjectId !== null && editingProjectId !== id) {
+    cancelEditingProject();
+  }
+  editSnapshot = cloneProjectRow(row);
+  editingProjectId = id;
+}
+
+function saveEditingProject() {
+  editingProjectId = null;
+  editSnapshot = null;
+}
+
+function cancelEditingProject() {
+  if (editingProjectId !== null && editSnapshot !== null) {
+    const id = editingProjectId;
+    const snap = editSnapshot;
+    projects = projects.map((p) => (p.id === id ? snap : p));
+  }
+  editingProjectId = null;
+  editSnapshot = null;
+}
+
 type SortKey = 'name' | 'template' | 'created' | 'accounts';
 
 let sortKey = $state<SortKey | null>(null);
 let sortDir = $state<'asc' | 'desc'>('asc');
+
+let showScrollDownChevron = $state(false);
+
+function updateScrollDownChevron() {
+  if (typeof document === 'undefined') return;
+  const doc = document.documentElement;
+  const roomBelow = doc.scrollHeight - window.innerHeight - window.scrollY;
+  showScrollDownChevron = roomBelow > 72;
+}
+
+function scrollPageDownStep() {
+  const doc = document.documentElement;
+  const vh = window.innerHeight;
+  const maxTop = doc.scrollHeight - vh;
+  const next = Math.min(doc.scrollTop + vh * 0.85, maxTop);
+  window.scrollTo({ top: next, behavior: 'smooth' });
+}
+
+$effect(() => {
+  if (typeof window === 'undefined') return;
+  updateScrollDownChevron();
+  window.addEventListener('scroll', updateScrollDownChevron, { passive: true });
+  window.addEventListener('resize', updateScrollDownChevron);
+  return () => {
+    window.removeEventListener('scroll', updateScrollDownChevron);
+    window.removeEventListener('resize', updateScrollDownChevron);
+  };
+});
+
+$effect(() => {
+  accordionValue;
+  if (typeof window === 'undefined') return;
+  void tick().then(() => updateScrollDownChevron());
+});
 
 function toggleSort(key: SortKey) {
   if (sortKey === key) {
@@ -210,13 +279,13 @@ let displayedProjects = $derived.by(() => {
 const sortHeadingBtnClass =
   'inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm font-medium tracking-wide uppercase hover:bg-muted/25 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-/** Chevron first, then name+slack | template | created | account count (inside accordion trigger) */
+/** Chevron first, then name+slug | template | created | account count (inside accordion trigger) */
 const summaryTriggerGridClass =
-  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-center gap-x-3 gap-y-1 py-3 pr-2 pl-4 text-left sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] sm:gap-x-4';
+  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-center gap-x-3 gap-y-1 py-3 pr-2 pl-4 text-left md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] md:gap-x-4';
 
 /** Header row: same grid columns as trigger + space for actions */
 const headerLeftGridClass =
-  'grid min-w-0 flex-1 grid-cols-1 px-4 py-3 text-left text-muted-foreground text-xs sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] sm:gap-x-4';
+  'grid min-w-0 flex-1 grid-cols-1 px-4 py-3 text-left text-muted-foreground text-xs md:grid md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] md:gap-x-4';
 </script>
 
 <svelte:head>
@@ -251,13 +320,15 @@ const headerLeftGridClass =
           No projects yet — use <span class="text-foreground">Add</span> to create one.
         </p>
       {:else}
-        <div class="min-w-0 overflow-hidden border border-border text-sm">
+        <div
+          class="min-w-0 max-w-full overflow-x-hidden overflow-y-visible border border-border text-sm"
+        >
           <div
-            class="hidden w-full flex-col border-border border-b sm:flex sm:flex-row sm:items-stretch"
+            class="hidden w-full flex-col border-border border-b md:flex md:flex-row md:items-stretch"
           >
             <div class={headerLeftGridClass}>
-              <span class="block sm:min-w-[2rem]" aria-hidden="true"></span>
-              <div class="hidden min-w-0 sm:block">
+              <span class="block md:min-w-[2rem]" aria-hidden="true"></span>
+              <div class="hidden min-w-0 md:block">
                 <button
                   type="button"
                   class={sortHeadingBtnClass}
@@ -282,7 +353,7 @@ const headerLeftGridClass =
                   </span>
                 </button>
               </div>
-              <div class="hidden min-w-0 sm:block">
+              <div class="hidden min-w-0 md:block">
                 <button
                   type="button"
                   class="{sortHeadingBtnClass} max-w-full"
@@ -307,7 +378,7 @@ const headerLeftGridClass =
                   </span>
                 </button>
               </div>
-              <div class="hidden sm:flex sm:justify-end">
+              <div class="hidden md:flex md:justify-end">
                 <button
                   type="button"
                   class="{sortHeadingBtnClass} tabular-nums"
@@ -332,7 +403,7 @@ const headerLeftGridClass =
                   </span>
                 </button>
               </div>
-              <div class="hidden sm:flex sm:justify-end">
+              <div class="hidden md:flex md:justify-end">
                 <button
                   type="button"
                   class="{sortHeadingBtnClass} tabular-nums"
@@ -359,7 +430,7 @@ const headerLeftGridClass =
               </div>
             </div>
             <div
-              class="flex items-center justify-end gap-2 px-4 py-3 text-muted-foreground text-xs font-medium tracking-wide uppercase sm:min-w-[8rem] sm:px-3"
+              class="flex items-center justify-end gap-2 px-4 py-3 text-muted-foreground text-xs font-medium tracking-wide uppercase md:min-w-[11rem] md:px-3"
             >
               Actions
             </div>
@@ -367,11 +438,13 @@ const headerLeftGridClass =
 
           <Accordion.Root type="multiple" class="min-w-0 divide-y divide-border" bind:value={accordionValue}>
             {#each displayedProjects as p (p.id)}
-              <Accordion.Item value={p.id} class="min-w-0 overflow-x-hidden border-0">
-                <Accordion.Header class="m-0 p-0">
-                  <div class="flex w-full min-w-0 max-w-full flex-col sm:flex-row sm:items-stretch">
+              <Accordion.Item value={p.id} class="min-w-0 overflow-x-hidden overflow-y-visible border-0">
+                <Accordion.Header class="m-0 overflow-visible p-0">
+                  <div
+                    class="flex w-full min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-visible md:flex-row md:items-stretch"
+                  >
                     <Accordion.Trigger
-                      class="{summaryTriggerGridClass} rounded-none border-0 bg-transparent text-left transition-colors hover:bg-muted/15 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&[data-state=open]_svg]:rotate-180"
+                      class="{summaryTriggerGridClass} overflow-visible rounded-none border-0 bg-transparent text-left transition-colors hover:bg-muted/15 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&[data-state=open]_svg]:rotate-180"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -383,57 +456,50 @@ const headerLeftGridClass =
                         stroke-width="2"
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        class="shrink-0 justify-self-start text-muted-foreground transition-transform duration-200 sm:mx-auto sm:justify-self-center"
+                        class="shrink-0 justify-self-start text-muted-foreground transition-transform duration-200 md:mx-auto md:justify-self-center"
                         aria-hidden="true"
                       >
                         <path d="m6 9 6 6 6-6" />
                       </svg>
                       <span class="min-w-0 w-full max-w-full">
                         <span class="block w-full font-medium text-foreground break-words">{p.name}</span>
-                        {#if p.slackName.trim()}
-                          <span
-                            class="mt-0.5 block w-full text-[0.75rem] font-normal leading-snug text-muted-foreground break-words"
-                            title="Slack"
-                          >
-                            {p.slackName}
-                          </span>
-                        {/if}
+                        <span
+                          class="mt-0.5 block w-full font-mono text-[0.75rem] font-normal leading-snug text-muted-foreground break-all"
+                        >
+                          {slugify(p.slug) || '—'}
+                        </span>
                       </span>
-                      <span
-                        class="min-w-0 text-muted-foreground sm:truncate sm:text-left"
-                        title={p.templateLabel}
-                      >
-                        <span class="sm:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
+                      <span class="min-w-0 text-muted-foreground md:truncate md:text-left">
+                        <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
                           >Template ·
                         </span>{p.templateLabel}
                       </span>
                       <span
-                        class="text-muted-foreground tabular-nums sm:block sm:w-full sm:text-right sm:tracking-normal"
+                        class="text-muted-foreground tabular-nums md:block md:w-full md:text-right md:tracking-normal"
                       >
-                        <span class="sm:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
+                        <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
                           >Created ·
                         </span>{p.createdLabel}
                       </span>
-                      <span class="text-muted-foreground tabular-nums sm:text-right">
-                        <span class="sm:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
+                      <span class="text-muted-foreground tabular-nums md:text-right">
+                        <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
                           >Accounts ·
                         </span>{p.accountNames.length}
                       </span>
                     </Accordion.Trigger>
                     <div
-                      class="flex flex-wrap items-center justify-end gap-2 overflow-visible py-3 pr-4 pl-2 sm:min-w-[8rem] sm:px-3"
+                      class="flex flex-wrap items-center justify-end gap-2 overflow-visible py-3 pr-4 pl-2 md:min-w-[11rem] md:px-3"
                     >
                       {#if p.isDraft}
                         <button
                           type="button"
-                          class="group relative {actionLinkClass} text-muted-foreground hover:text-foreground"
+                          class="{actionLinkClass} text-muted-foreground hover:text-foreground"
                           aria-label="Save"
                           onclick={(e) => {
                             e.stopPropagation();
                             saveDraftProject(p.id);
                           }}
                         >
-                          <span class={draftIconTipClass} role="tooltip">Save</span>
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="16"
@@ -451,14 +517,63 @@ const headerLeftGridClass =
                         </button>
                         <button
                           type="button"
-                          class="group relative {actionLinkClass} text-muted-foreground hover:border-destructive/60 hover:text-destructive"
+                          class="{actionLinkClass} text-muted-foreground hover:border-destructive/60 hover:text-destructive"
                           aria-label="Cancel"
                           onclick={(e) => {
                             e.stopPropagation();
                             discardDraftProject(p.id);
                           }}
                         >
-                          <span class={draftIconTipClass} role="tooltip">Cancel</span>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                          </svg>
+                        </button>
+                      {:else if editingProjectId === p.id}
+                        <button
+                          type="button"
+                          class="{actionLinkClass} text-muted-foreground hover:text-foreground"
+                          aria-label="Save"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            saveEditingProject();
+                          }}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="{actionLinkClass} text-muted-foreground hover:border-destructive/60 hover:text-destructive"
+                          aria-label="Cancel"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            cancelEditingProject();
+                          }}
+                        >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="16"
@@ -481,7 +596,6 @@ const headerLeftGridClass =
                           target="_blank"
                           rel="noopener noreferrer"
                           class="{actionLinkClass} {!p.websiteUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                          title="Website"
                           aria-label={`Open website for ${p.name}`}
                           aria-disabled={!p.websiteUrl.trim()}
                           onclick={(e) => {
@@ -496,7 +610,6 @@ const headerLeftGridClass =
                           target="_blank"
                           rel="noopener noreferrer"
                           class="{actionLinkClass} {!p.githubUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                          title="GitHub"
                           aria-label={`Open GitHub for ${p.name}`}
                           aria-disabled={!p.githubUrl.trim()}
                           onclick={(e) => {
@@ -511,8 +624,7 @@ const headerLeftGridClass =
                           target="_blank"
                           rel="noopener noreferrer"
                           class="{actionLinkClass} {!p.awsSignInUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                          title="AWS sign-in"
-                          aria-label={`Open AWS sign-in for ${p.name}`}
+                          aria-label={`Open assign URL for ${p.name}`}
                           aria-disabled={!p.awsSignInUrl.trim()}
                           onclick={(e) => {
                             e.stopPropagation();
@@ -521,211 +633,472 @@ const headerLeftGridClass =
                         >
                           A
                         </a>
+                        <button
+                          type="button"
+                          class="{actionLinkClass} text-muted-foreground hover:text-foreground"
+                          aria-label="Edit project"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            startEditingProject(p.id);
+                          }}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.506l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" />
+                          </svg>
+                        </button>
                       {/if}
                     </div>
                   </div>
                 </Accordion.Header>
-                <Accordion.Content class="min-w-0 max-w-full overflow-x-hidden bg-muted/10 px-4 pb-5 pt-2">
-                  <div class="flex flex-col gap-6 pt-2">
-                    <div class="grid gap-4 sm:grid-cols-2">
-                      <div class="flex flex-col gap-2 sm:col-span-2">
-                        <Label for={`${p.id}-name`} class="text-muted-foreground text-xs font-normal">
-                          Project name
-                        </Label>
-                        <Input
-                          id={`${p.id}-name`}
-                          type="text"
-                          value={p.name}
-                          oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
-                          class="w-full min-w-0 rounded-sm border-border bg-transparent"
-                        />
+                <Accordion.Content class="min-w-0 max-w-full overflow-x-hidden overflow-y-visible bg-muted/10 px-4 pb-5 pt-2">
+                  {#if p.isDraft}
+                    <div class="flex flex-col gap-6 pt-2">
+                      <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-name`} class="text-muted-foreground text-xs font-normal">
+                            Project name
+                          </Label>
+                          <Input
+                            id={`${p.id}-name`}
+                            type="text"
+                            value={p.name}
+                            oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
+                            class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-slug`} class="text-muted-foreground text-xs font-normal">
+                            Slug
+                          </Label>
+                          <Input
+                            id={`${p.id}-slug`}
+                            type="text"
+                            placeholder="e.g. new-project"
+                            value={p.slug}
+                            oninput={(e) => patchProject(p.id, { slug: e.currentTarget.value })}
+                            class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-template`} class="text-muted-foreground text-xs font-normal">
+                            Template
+                          </Label>
+                          <Input
+                            id={`${p.id}-template`}
+                            type="text"
+                            placeholder="e.g. SST monorepo starter"
+                            value={p.templateLabel}
+                            oninput={(e) => patchProject(p.id, { templateLabel: e.currentTarget.value })}
+                            class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-blurb`} class="text-muted-foreground text-xs font-normal">
+                            Description
+                          </Label>
+                          <textarea
+                            id={`${p.id}-blurb`}
+                            rows="3"
+                            value={p.detailBlurb}
+                            oninput={(e) => patchProject(p.id, { detailBlurb: e.currentTarget.value })}
+                            class="min-h-[5rem] resize-y rounded-sm border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            placeholder="Short summary of the stack and accounts…"
+                          ></textarea>
+                        </div>
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-website`} class="text-muted-foreground text-xs font-normal">
+                            Website URL
+                          </Label>
+                          <Input
+                            id={`${p.id}-website`}
+                            type="url"
+                            placeholder="https://…"
+                            value={p.websiteUrl}
+                            oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
+                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                          <Label for={`${p.id}-github`} class="text-muted-foreground text-xs font-normal">
+                            GitHub URL
+                          </Label>
+                          <Input
+                            id={`${p.id}-github`}
+                            type="url"
+                            value={p.githubUrl}
+                            oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
+                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                          <Label for={`${p.id}-aws`} class="text-muted-foreground text-xs font-normal">
+                            Assign URL
+                          </Label>
+                          <Input
+                            id={`${p.id}-aws`}
+                            type="url"
+                            value={p.awsSignInUrl}
+                            oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
+                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                          />
+                        </div>
                       </div>
-                      <div class="flex flex-col gap-2 sm:col-span-2">
-                        <Label for={`${p.id}-slack`} class="text-muted-foreground text-xs font-normal">
-                          Slack
-                        </Label>
-                        <Input
-                          id={`${p.id}-slack`}
-                          type="text"
-                          placeholder="e.g. #acme-platform"
-                          value={p.slackName}
-                          oninput={(e) => patchProject(p.id, { slackName: e.currentTarget.value })}
-                          class="w-full min-w-0 rounded-sm border-border bg-transparent"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <Label for={`${p.id}-slug`} class="text-muted-foreground text-xs font-normal">
-                          Slug
-                        </Label>
-                        <Input
-                          id={`${p.id}-slug`}
-                          type="text"
-                          value={p.slug}
-                          oninput={(e) => patchProject(p.id, { slug: e.currentTarget.value })}
-                          class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <Label for={`${p.id}-template`} class="text-muted-foreground text-xs font-normal">
-                          Template
-                        </Label>
-                        <Input
-                          id={`${p.id}-template`}
-                          type="text"
-                          placeholder="e.g. SST monorepo starter"
-                          value={p.templateLabel}
-                          oninput={(e) => patchProject(p.id, { templateLabel: e.currentTarget.value })}
-                          class="rounded-sm border-border bg-transparent"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-2 sm:col-span-2">
-                        <Label for={`${p.id}-blurb`} class="text-muted-foreground text-xs font-normal">
-                          Description
-                        </Label>
-                        <textarea
-                          id={`${p.id}-blurb`}
-                          rows="3"
-                          value={p.detailBlurb}
-                          oninput={(e) => patchProject(p.id, { detailBlurb: e.currentTarget.value })}
-                          class="min-h-[5rem] resize-y rounded-sm border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                          placeholder="Short summary of the stack and accounts…"
-                        ></textarea>
-                      </div>
-                      <div class="flex flex-col gap-2 sm:col-span-2">
-                        <Label for={`${p.id}-website`} class="text-muted-foreground text-xs font-normal">
-                          Website URL
-                        </Label>
-                        <Input
-                          id={`${p.id}-website`}
-                          type="url"
-                          placeholder="https://…"
-                          value={p.websiteUrl}
-                          oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
-                          class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <Label for={`${p.id}-github`} class="text-muted-foreground text-xs font-normal">
-                          GitHub URL
-                        </Label>
-                        <Input
-                          id={`${p.id}-github`}
-                          type="url"
-                          value={p.githubUrl}
-                          oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
-                          class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <Label for={`${p.id}-aws`} class="text-muted-foreground text-xs font-normal">
-                          AWS sign-in URL
-                        </Label>
-                        <Input
-                          id={`${p.id}-aws`}
-                          type="url"
-                          value={p.awsSignInUrl}
-                          oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
-                          class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                        />
-                      </div>
-                    </div>
 
-                    <div class="flex max-w-[8rem] flex-col gap-2">
-                      <Label for={`${p.id}-acct-count`} class="text-muted-foreground text-xs font-normal">
-                        Number of accounts
-                      </Label>
-                      <Input
-                        id={`${p.id}-acct-count`}
-                        type="number"
-                        min={MIN_ACCOUNTS}
-                        max={MAX_ACCOUNTS}
-                        value={String(p.accountNames.length)}
-                        oninput={(e) => onProjectAccountCountInput(p.id, e)}
-                        class="rounded-sm border-border bg-transparent tabular-nums"
-                      />
-                      <p class="text-[0.7rem] text-neutral-600">
-                        Between {MIN_ACCOUNTS} and {MAX_ACCOUNTS}.
-                      </p>
-                    </div>
+                      <div class="flex max-w-[8rem] flex-col gap-2">
+                        <Label for={`${p.id}-acct-count`} class="text-muted-foreground text-xs font-normal">
+                          Number of accounts
+                        </Label>
+                        <Input
+                          id={`${p.id}-acct-count`}
+                          type="number"
+                          min={MIN_ACCOUNTS}
+                          max={MAX_ACCOUNTS}
+                          value={String(p.accountNames.length)}
+                          oninput={(e) => onProjectAccountCountInput(p.id, e)}
+                          class="rounded-sm border-border bg-transparent tabular-nums"
+                        />
+                        <p class="text-[0.7rem] text-neutral-600">
+                          Between {MIN_ACCOUNTS} and {MAX_ACCOUNTS}.
+                        </p>
+                      </div>
 
-                    <div class="min-w-0">
-                      <span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                        Accounts
-                      </span>
-                      <table
-                        class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
-                      >
-                        <colgroup>
-                          <col class="w-[36%]" />
-                          <col class="w-[44%]" />
-                          <col class="w-[20%]" />
-                        </colgroup>
-                        <thead>
-                          <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                            <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
-                              Account name
-                            </th>
-                            <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
-                              Email
-                            </th>
-                            <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
-                              Account id
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {#each p.accountNames as name, idx (`${p.id}-row-${idx}`)}
-                            <tr class="border-border border-b last:border-b-0">
-                              <td class="min-w-0 px-3 py-2 align-middle">
-                                <Input
-                                  type="text"
-                                  placeholder="e.g. myapp-int"
-                                  value={name}
-                                  oninput={(e) => {
-                                    const id = p.id;
-                                    const i = idx;
-                                    const v = e.currentTarget.value;
-                                    projects = projects.map((x) => {
-                                      if (x.id !== id) return x;
-                                      const accountNames = x.accountNames.slice();
-                                      accountNames[i] = v;
-                                      return { ...x, accountNames };
-                                    });
-                                  }}
-                                  class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-sm"
-                                />
-                              </td>
-                              <td class="min-w-0 px-3 py-2 align-middle">
-                                <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
-                                  {accountAliasEmail(name, p.slug, p.name)}
-                                </span>
-                              </td>
-                              <td class="min-w-0 px-3 py-2 align-middle">
-                                <Input
-                                  type="text"
-                                  placeholder="—"
-                                  value={p.accountHints?.[idx] ?? ''}
-                                  oninput={(e) => {
-                                    const id = p.id;
-                                    const i = idx;
-                                    const v = e.currentTarget.value;
-                                    projects = projects.map((x) => {
-                                      if (x.id !== id) return x;
-                                      const hints = [...(x.accountHints ?? [])];
-                                      while (hints.length <= i) hints.push('');
-                                      hints[i] = v;
-                                      return { ...x, accountHints: hints };
-                                    });
-                                  }}
-                                  class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
-                                />
-                              </td>
+                      <div class="min-w-0">
+                        <span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                          Accounts
+                        </span>
+                        <table
+                          class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                        >
+                          <colgroup>
+                            <col class="w-[36%]" />
+                            <col class="w-[44%]" />
+                            <col class="w-[20%]" />
+                          </colgroup>
+                          <thead>
+                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Account name
+                              </th>
+                              <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Email
+                              </th>
+                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Account id
+                              </th>
                             </tr>
-                          {/each}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {#each p.accountNames as name, idx (`${p.id}-row-${idx}`)}
+                              <tr class="border-border border-b last:border-b-0">
+                                <td class="min-w-0 px-3 py-2 align-middle">
+                                  <Input
+                                    type="text"
+                                    placeholder="e.g. myapp-int"
+                                    value={name}
+                                    oninput={(e) => {
+                                      const id = p.id;
+                                      const i = idx;
+                                      const v = e.currentTarget.value;
+                                      projects = projects.map((x) => {
+                                        if (x.id !== id) return x;
+                                        const accountNames = x.accountNames.slice();
+                                        accountNames[i] = v;
+                                        return { ...x, accountNames };
+                                      });
+                                    }}
+                                    class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-sm"
+                                  />
+                                </td>
+                                <td class="min-w-0 px-3 py-2 align-middle">
+                                  <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
+                                    {accountAliasEmail(name, p.slug)}
+                                  </span>
+                                </td>
+                                <td class="min-w-0 px-3 py-2 align-middle">
+                                  <Input
+                                    type="text"
+                                    placeholder="—"
+                                    value={p.accountHints?.[idx] ?? ''}
+                                    oninput={(e) => {
+                                      const id = p.id;
+                                      const i = idx;
+                                      const v = e.currentTarget.value;
+                                      projects = projects.map((x) => {
+                                        if (x.id !== id) return x;
+                                        const hints = [...(x.accountHints ?? [])];
+                                        while (hints.length <= i) hints.push('');
+                                        hints[i] = v;
+                                        return { ...x, accountHints: hints };
+                                      });
+                                    }}
+                                    class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
+                                  />
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
+                  {:else if editingProjectId === p.id}
+                    <div class="flex flex-col gap-6 pt-2">
+                      <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-edit-name`} class="text-muted-foreground text-xs font-normal">
+                            Project name
+                          </Label>
+                          <Input
+                            id={`${p.id}-edit-name`}
+                            type="text"
+                            value={p.name}
+                            oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
+                            class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-1 sm:col-span-2">
+                          <span class="text-muted-foreground text-xs font-normal">Slug</span>
+                          <span class="font-mono text-sm text-foreground">{slugify(p.slug) || '—'}</span>
+                          <p class="text-[0.65rem] text-muted-foreground leading-snug">
+                            Slug, template, and accounts stay fixed after the project is created.
+                          </p>
+                        </div>
+                        <div class="flex flex-col gap-1 sm:col-span-2">
+                          <span class="text-muted-foreground text-xs font-normal">Template</span>
+                          <span class="text-sm text-foreground">{p.templateLabel || '—'}</span>
+                        </div>
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-edit-blurb`} class="text-muted-foreground text-xs font-normal">
+                            Description
+                          </Label>
+                          <textarea
+                            id={`${p.id}-edit-blurb`}
+                            rows="3"
+                            value={p.detailBlurb}
+                            oninput={(e) => patchProject(p.id, { detailBlurb: e.currentTarget.value })}
+                            class="min-h-[5rem] resize-y rounded-sm border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            placeholder="Short summary…"
+                          ></textarea>
+                        </div>
+                        <div class="flex flex-col gap-2 sm:col-span-2">
+                          <Label for={`${p.id}-edit-website`} class="text-muted-foreground text-xs font-normal">
+                            Website URL
+                          </Label>
+                          <Input
+                            id={`${p.id}-edit-website`}
+                            type="url"
+                            placeholder="https://…"
+                            value={p.websiteUrl}
+                            oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
+                            class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                          <Label for={`${p.id}-edit-github`} class="text-muted-foreground text-xs font-normal">
+                            GitHub URL
+                          </Label>
+                          <Input
+                            id={`${p.id}-edit-github`}
+                            type="url"
+                            value={p.githubUrl}
+                            oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
+                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                          />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                          <Label for={`${p.id}-edit-assign`} class="text-muted-foreground text-xs font-normal">
+                            Assign URL
+                          </Label>
+                          <Input
+                            id={`${p.id}-edit-assign`}
+                            type="url"
+                            value={p.awsSignInUrl}
+                            oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
+                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                          />
+                        </div>
+                      </div>
+
+                      <div class="min-w-0">
+                        <span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                          Accounts
+                        </span>
+                        <table
+                          class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                        >
+                          <colgroup>
+                            <col class="w-[36%]" />
+                            <col class="w-[44%]" />
+                            <col class="w-[20%]" />
+                          </colgroup>
+                          <thead>
+                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Account name
+                              </th>
+                              <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Email
+                              </th>
+                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Account id
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each p.accountNames as name, idx (`${p.id}-edit-acct-${idx}`)}
+                              {@const accountIdHint = p.accountHints?.[idx]}
+                              <tr class="border-border border-b last:border-b-0">
+                                <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
+                                  {name}
+                                </td>
+                                <td class="min-w-0 px-3 py-2">
+                                  <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
+                                    {accountAliasEmail(name, p.slug)}
+                                  </span>
+                                </td>
+                                <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
+                                  {#if (accountIdHint ?? '').trim()}
+                                    {accountIdHint}
+                                  {:else}
+                                    —
+                                  {/if}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="flex flex-col gap-6 pt-2">
+                      <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="flex flex-col gap-1 sm:col-span-2">
+                          <span class="text-muted-foreground text-xs font-normal">Project name</span>
+                          <span class="text-sm text-foreground">{p.name}</span>
+                        </div>
+                        <div class="flex flex-col gap-1 sm:col-span-2">
+                          <span class="text-muted-foreground text-xs font-normal">Slug</span>
+                          <span class="font-mono text-sm text-foreground">{slugify(p.slug) || '—'}</span>
+                        </div>
+                        <div class="flex flex-col gap-1 sm:col-span-2">
+                          <span class="text-muted-foreground text-xs font-normal">Template</span>
+                          <span class="text-sm text-foreground">{p.templateLabel || '—'}</span>
+                        </div>
+                        {#if p.detailBlurb.trim()}
+                          <div class="flex flex-col gap-1 sm:col-span-2">
+                            <span class="text-muted-foreground text-xs font-normal">Description</span>
+                            <p class="max-w-prose text-sm text-foreground leading-relaxed">{p.detailBlurb}</p>
+                          </div>
+                        {/if}
+                        <div class="flex flex-col gap-1 sm:col-span-2">
+                          <span class="text-muted-foreground text-xs font-normal">Website URL</span>
+                          {#if p.websiteUrl.trim()}
+                            <a
+                              href={p.websiteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
+                            >
+                              {p.websiteUrl}
+                            </a>
+                          {:else}
+                            <span class="text-sm text-muted-foreground">—</span>
+                          {/if}
+                        </div>
+                        <div class="flex flex-col gap-1">
+                          <span class="text-muted-foreground text-xs font-normal">GitHub URL</span>
+                          {#if p.githubUrl.trim()}
+                            <a
+                              href={p.githubUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
+                            >
+                              {p.githubUrl}
+                            </a>
+                          {:else}
+                            <span class="text-sm text-muted-foreground">—</span>
+                          {/if}
+                        </div>
+                        <div class="flex flex-col gap-1">
+                          <span class="text-muted-foreground text-xs font-normal">Assign URL</span>
+                          {#if p.awsSignInUrl.trim()}
+                            <a
+                              href={p.awsSignInUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
+                            >
+                              {p.awsSignInUrl}
+                            </a>
+                          {:else}
+                            <span class="text-sm text-muted-foreground">—</span>
+                          {/if}
+                        </div>
+                      </div>
+
+                      <div class="min-w-0">
+                        <span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                          Accounts
+                        </span>
+                        <table
+                          class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                        >
+                          <colgroup>
+                            <col class="w-[36%]" />
+                            <col class="w-[44%]" />
+                            <col class="w-[20%]" />
+                          </colgroup>
+                          <thead>
+                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Account name
+                              </th>
+                              <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Email
+                              </th>
+                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                Account id
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {#each p.accountNames as name, idx (`${p.id}-readonly-acct-${idx}`)}
+                              {@const accountIdHint = p.accountHints?.[idx]}
+                              <tr class="border-border border-b last:border-b-0">
+                                <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
+                                  {name}
+                                </td>
+                                <td class="min-w-0 px-3 py-2">
+                                  <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
+                                    {accountAliasEmail(name, p.slug)}
+                                  </span>
+                                </td>
+                                <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
+                                  {#if (accountIdHint ?? '').trim()}
+                                    {accountIdHint}
+                                  {:else}
+                                    —
+                                  {/if}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  {/if}
                 </Accordion.Content>
               </Accordion.Item>
             {/each}
@@ -736,4 +1109,29 @@ const headerLeftGridClass =
 
     <p class="mt-12 text-center text-[0.7rem] text-neutral-600">Design preview — stored in-page only</p>
   </div>
+
+  {#if showScrollDownChevron}
+    <button
+      type="button"
+      class="pointer-events-auto fixed bottom-6 left-1/2 z-30 flex size-10 -translate-x-1/2 items-center justify-center border border-border bg-background/95 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-muted/30 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      aria-label="Scroll down"
+      onclick={scrollPageDownStep}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        class="translate-y-px"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </button>
+  {/if}
 </main>
