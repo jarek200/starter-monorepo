@@ -286,6 +286,10 @@ const summaryTriggerGridClass =
 /** Header row: same grid columns as trigger + space for actions */
 const headerLeftGridClass =
   'grid min-w-0 flex-1 grid-cols-1 px-4 py-3 text-left text-muted-foreground text-xs md:grid md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] md:gap-x-4';
+
+/** Three fields in a row: 1 col, 2 from sm, 3 from lg (name block or URL block) */
+const tripleFieldGridClass =
+  'grid min-w-0 grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2 lg:grid-cols-3';
 </script>
 
 <svelte:head>
@@ -666,45 +670,47 @@ const headerLeftGridClass =
                   {#if p.isDraft}
                     <div class="flex flex-col gap-6 pt-2">
                       <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="flex flex-col gap-2 sm:col-span-2">
-                          <Label for={`${p.id}-name`} class="text-muted-foreground text-xs font-normal">
-                            Project name
-                          </Label>
-                          <Input
-                            id={`${p.id}-name`}
-                            type="text"
-                            value={p.name}
-                            oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
-                            class="w-full min-w-0 rounded-sm border-border bg-transparent"
-                          />
+                        <div class={tripleFieldGridClass}>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-name`} class="text-muted-foreground text-xs font-normal">
+                              Project name
+                            </Label>
+                            <Input
+                              id={`${p.id}-name`}
+                              type="text"
+                              value={p.name}
+                              oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-slug`} class="text-muted-foreground text-xs font-normal">
+                              Slug
+                            </Label>
+                            <Input
+                              id={`${p.id}-slug`}
+                              type="text"
+                              placeholder="e.g. new-project"
+                              value={p.slug}
+                              oninput={(e) => patchProject(p.id, { slug: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-template`} class="text-muted-foreground text-xs font-normal">
+                              Template
+                            </Label>
+                            <Input
+                              id={`${p.id}-template`}
+                              type="text"
+                              placeholder="e.g. SST monorepo starter"
+                              value={p.templateLabel}
+                              oninput={(e) => patchProject(p.id, { templateLabel: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                            />
+                          </div>
                         </div>
-                        <div class="flex flex-col gap-2 sm:col-span-2">
-                          <Label for={`${p.id}-slug`} class="text-muted-foreground text-xs font-normal">
-                            Slug
-                          </Label>
-                          <Input
-                            id={`${p.id}-slug`}
-                            type="text"
-                            placeholder="e.g. new-project"
-                            value={p.slug}
-                            oninput={(e) => patchProject(p.id, { slug: e.currentTarget.value })}
-                            class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                          />
-                        </div>
-                        <div class="flex flex-col gap-2 sm:col-span-2">
-                          <Label for={`${p.id}-template`} class="text-muted-foreground text-xs font-normal">
-                            Template
-                          </Label>
-                          <Input
-                            id={`${p.id}-template`}
-                            type="text"
-                            placeholder="e.g. SST monorepo starter"
-                            value={p.templateLabel}
-                            oninput={(e) => patchProject(p.id, { templateLabel: e.currentTarget.value })}
-                            class="w-full min-w-0 rounded-sm border-border bg-transparent"
-                          />
-                        </div>
-                        <div class="flex flex-col gap-2 sm:col-span-2">
+                        <div class="flex w-full min-w-0 flex-col gap-2 sm:col-span-2">
                           <Label for={`${p.id}-blurb`} class="text-muted-foreground text-xs font-normal">
                             Description
                           </Label>
@@ -713,46 +719,48 @@ const headerLeftGridClass =
                             rows="3"
                             value={p.detailBlurb}
                             oninput={(e) => patchProject(p.id, { detailBlurb: e.currentTarget.value })}
-                            class="min-h-[5rem] resize-y rounded-sm border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            class="min-h-[5rem] w-full min-w-0 resize-y rounded-sm border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                             placeholder="Short summary of the stack and accounts…"
                           ></textarea>
                         </div>
-                        <div class="flex flex-col gap-2 sm:col-span-2">
-                          <Label for={`${p.id}-website`} class="text-muted-foreground text-xs font-normal">
-                            Website URL
-                          </Label>
-                          <Input
-                            id={`${p.id}-website`}
-                            type="url"
-                            placeholder="https://…"
-                            value={p.websiteUrl}
-                            oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
-                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                          />
-                        </div>
-                        <div class="flex flex-col gap-2">
-                          <Label for={`${p.id}-github`} class="text-muted-foreground text-xs font-normal">
-                            GitHub URL
-                          </Label>
-                          <Input
-                            id={`${p.id}-github`}
-                            type="url"
-                            value={p.githubUrl}
-                            oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
-                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                          />
-                        </div>
-                        <div class="flex flex-col gap-2">
-                          <Label for={`${p.id}-aws`} class="text-muted-foreground text-xs font-normal">
-                            Assign URL
-                          </Label>
-                          <Input
-                            id={`${p.id}-aws`}
-                            type="url"
-                            value={p.awsSignInUrl}
-                            oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
-                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                          />
+                        <div class={tripleFieldGridClass}>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-website`} class="text-muted-foreground text-xs font-normal">
+                              Website URL
+                            </Label>
+                            <Input
+                              id={`${p.id}-website`}
+                              type="url"
+                              placeholder="https://…"
+                              value={p.websiteUrl}
+                              oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-github`} class="text-muted-foreground text-xs font-normal">
+                              GitHub URL
+                            </Label>
+                            <Input
+                              id={`${p.id}-github`}
+                              type="url"
+                              value={p.githubUrl}
+                              oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-aws`} class="text-muted-foreground text-xs font-normal">
+                              Assign URL
+                            </Label>
+                            <Input
+                              id={`${p.id}-aws`}
+                              type="url"
+                              value={p.awsSignInUrl}
+                              oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -855,30 +863,32 @@ const headerLeftGridClass =
                   {:else if editingProjectId === p.id}
                     <div class="flex flex-col gap-6 pt-2">
                       <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="flex flex-col gap-2 sm:col-span-2">
-                          <Label for={`${p.id}-edit-name`} class="text-muted-foreground text-xs font-normal">
-                            Project name
-                          </Label>
-                          <Input
-                            id={`${p.id}-edit-name`}
-                            type="text"
-                            value={p.name}
-                            oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
-                            class="w-full min-w-0 rounded-sm border-border bg-transparent"
-                          />
+                        <div class={tripleFieldGridClass}>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-edit-name`} class="text-muted-foreground text-xs font-normal">
+                              Project name
+                            </Label>
+                            <Input
+                              id={`${p.id}-edit-name`}
+                              type="text"
+                              value={p.name}
+                              oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">Slug</span>
+                            <span class="font-mono text-sm text-foreground break-all">{slugify(p.slug) || '—'}</span>
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">Template</span>
+                            <span class="text-sm text-foreground break-words">{p.templateLabel || '—'}</span>
+                          </div>
                         </div>
-                        <div class="flex flex-col gap-1 sm:col-span-2">
-                          <span class="text-muted-foreground text-xs font-normal">Slug</span>
-                          <span class="font-mono text-sm text-foreground">{slugify(p.slug) || '—'}</span>
-                          <p class="text-[0.65rem] text-muted-foreground leading-snug">
-                            Slug, template, and accounts stay fixed after the project is created.
-                          </p>
-                        </div>
-                        <div class="flex flex-col gap-1 sm:col-span-2">
-                          <span class="text-muted-foreground text-xs font-normal">Template</span>
-                          <span class="text-sm text-foreground">{p.templateLabel || '—'}</span>
-                        </div>
-                        <div class="flex flex-col gap-2 sm:col-span-2">
+                        <p class="text-[0.65rem] text-muted-foreground leading-snug sm:col-span-2">
+                          Slug, template, and accounts stay fixed after the project is created.
+                        </p>
+                        <div class="flex w-full min-w-0 flex-col gap-2 sm:col-span-2">
                           <Label for={`${p.id}-edit-blurb`} class="text-muted-foreground text-xs font-normal">
                             Description
                           </Label>
@@ -887,46 +897,48 @@ const headerLeftGridClass =
                             rows="3"
                             value={p.detailBlurb}
                             oninput={(e) => patchProject(p.id, { detailBlurb: e.currentTarget.value })}
-                            class="min-h-[5rem] resize-y rounded-sm border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            class="min-h-[5rem] w-full min-w-0 resize-y rounded-sm border border-border bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                             placeholder="Short summary…"
                           ></textarea>
                         </div>
-                        <div class="flex flex-col gap-2 sm:col-span-2">
-                          <Label for={`${p.id}-edit-website`} class="text-muted-foreground text-xs font-normal">
-                            Website URL
-                          </Label>
-                          <Input
-                            id={`${p.id}-edit-website`}
-                            type="url"
-                            placeholder="https://…"
-                            value={p.websiteUrl}
-                            oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
-                            class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                          />
-                        </div>
-                        <div class="flex flex-col gap-2">
-                          <Label for={`${p.id}-edit-github`} class="text-muted-foreground text-xs font-normal">
-                            GitHub URL
-                          </Label>
-                          <Input
-                            id={`${p.id}-edit-github`}
-                            type="url"
-                            value={p.githubUrl}
-                            oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
-                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                          />
-                        </div>
-                        <div class="flex flex-col gap-2">
-                          <Label for={`${p.id}-edit-assign`} class="text-muted-foreground text-xs font-normal">
-                            Assign URL
-                          </Label>
-                          <Input
-                            id={`${p.id}-edit-assign`}
-                            type="url"
-                            value={p.awsSignInUrl}
-                            oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
-                            class="rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                          />
+                        <div class={tripleFieldGridClass}>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-edit-website`} class="text-muted-foreground text-xs font-normal">
+                              Website URL
+                            </Label>
+                            <Input
+                              id={`${p.id}-edit-website`}
+                              type="url"
+                              placeholder="https://…"
+                              value={p.websiteUrl}
+                              oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-edit-github`} class="text-muted-foreground text-xs font-normal">
+                              GitHub URL
+                            </Label>
+                            <Input
+                              id={`${p.id}-edit-github`}
+                              type="url"
+                              value={p.githubUrl}
+                              oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-edit-assign`} class="text-muted-foreground text-xs font-normal">
+                              Assign URL
+                            </Label>
+                            <Input
+                              id={`${p.id}-edit-assign`}
+                              type="url"
+                              value={p.awsSignInUrl}
+                              oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -983,68 +995,74 @@ const headerLeftGridClass =
                   {:else}
                     <div class="flex flex-col gap-6 pt-2">
                       <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="flex flex-col gap-1 sm:col-span-2">
-                          <span class="text-muted-foreground text-xs font-normal">Project name</span>
-                          <span class="text-sm text-foreground">{p.name}</span>
-                        </div>
-                        <div class="flex flex-col gap-1 sm:col-span-2">
-                          <span class="text-muted-foreground text-xs font-normal">Slug</span>
-                          <span class="font-mono text-sm text-foreground">{slugify(p.slug) || '—'}</span>
-                        </div>
-                        <div class="flex flex-col gap-1 sm:col-span-2">
-                          <span class="text-muted-foreground text-xs font-normal">Template</span>
-                          <span class="text-sm text-foreground">{p.templateLabel || '—'}</span>
+                        <div class={tripleFieldGridClass}>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">Project name</span>
+                            <span class="text-sm text-foreground break-words">{p.name}</span>
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">Slug</span>
+                            <span class="font-mono text-sm text-foreground break-all">{slugify(p.slug) || '—'}</span>
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">Template</span>
+                            <span class="text-sm text-foreground break-words">{p.templateLabel || '—'}</span>
+                          </div>
                         </div>
                         {#if p.detailBlurb.trim()}
-                          <div class="flex flex-col gap-1 sm:col-span-2">
+                          <div class="flex w-full min-w-0 flex-col gap-1 sm:col-span-2">
                             <span class="text-muted-foreground text-xs font-normal">Description</span>
-                            <p class="max-w-prose text-sm text-foreground leading-relaxed">{p.detailBlurb}</p>
+                            <p class="w-full min-w-0 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+                              {p.detailBlurb}
+                            </p>
                           </div>
                         {/if}
-                        <div class="flex flex-col gap-1 sm:col-span-2">
-                          <span class="text-muted-foreground text-xs font-normal">Website URL</span>
-                          {#if p.websiteUrl.trim()}
-                            <a
-                              href={p.websiteUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
-                            >
-                              {p.websiteUrl}
-                            </a>
-                          {:else}
-                            <span class="text-sm text-muted-foreground">—</span>
-                          {/if}
-                        </div>
-                        <div class="flex flex-col gap-1">
-                          <span class="text-muted-foreground text-xs font-normal">GitHub URL</span>
-                          {#if p.githubUrl.trim()}
-                            <a
-                              href={p.githubUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
-                            >
-                              {p.githubUrl}
-                            </a>
-                          {:else}
-                            <span class="text-sm text-muted-foreground">—</span>
-                          {/if}
-                        </div>
-                        <div class="flex flex-col gap-1">
-                          <span class="text-muted-foreground text-xs font-normal">Assign URL</span>
-                          {#if p.awsSignInUrl.trim()}
-                            <a
-                              href={p.awsSignInUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
-                            >
-                              {p.awsSignInUrl}
-                            </a>
-                          {:else}
-                            <span class="text-sm text-muted-foreground">—</span>
-                          {/if}
+                        <div class={tripleFieldGridClass}>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">Website URL</span>
+                            {#if p.websiteUrl.trim()}
+                              <a
+                                href={p.websiteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
+                              >
+                                {p.websiteUrl}
+                              </a>
+                            {:else}
+                              <span class="text-sm text-muted-foreground">—</span>
+                            {/if}
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">GitHub URL</span>
+                            {#if p.githubUrl.trim()}
+                              <a
+                                href={p.githubUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
+                              >
+                                {p.githubUrl}
+                              </a>
+                            {:else}
+                              <span class="text-sm text-muted-foreground">—</span>
+                            {/if}
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-muted-foreground text-xs font-normal">Assign URL</span>
+                            {#if p.awsSignInUrl.trim()}
+                              <a
+                                href={p.awsSignInUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="break-all font-mono text-[0.85rem] text-foreground/90 underline underline-offset-2 hover:text-foreground"
+                              >
+                                {p.awsSignInUrl}
+                              </a>
+                            {:else}
+                              <span class="text-sm text-muted-foreground">—</span>
+                            {/if}
+                          </div>
                         </div>
                       </div>
 
