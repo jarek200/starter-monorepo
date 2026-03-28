@@ -8,7 +8,9 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
+import { requiredEnv } from '../runtime-env';
+
+const TABLE_NAME = requiredEnv('TABLE_NAME');
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);

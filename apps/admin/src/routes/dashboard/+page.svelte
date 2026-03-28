@@ -449,7 +449,11 @@ const RANDOM_TEMPLATE_LABELS = [
 ] as const;
 
 function pickRandom<const T extends readonly string[]>(arr: T): T[number] {
-  return arr[Math.floor(Math.random() * arr.length)]!;
+  if (arr.length === 0) throw new Error('pickRandom: empty array');
+  const i = Math.floor(Math.random() * arr.length);
+  const v = arr[i];
+  if (v === undefined) throw new Error('pickRandom: invalid index');
+  return v;
 }
 
 function randomUsdTriplet(): [string, string, string] {

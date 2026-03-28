@@ -65,11 +65,16 @@ async function assumeAccountRole(accountId: string): Promise<IAMClient> {
   const creds = assumed.Credentials;
   if (!creds) throw new Error(`Failed to assume role in account ${accountId}`);
 
+  const { AccessKeyId, SecretAccessKey, SessionToken } = creds;
+  if (!AccessKeyId || !SecretAccessKey || !SessionToken) {
+    throw new Error(`Incomplete assumed role credentials for account ${accountId}`);
+  }
+
   return new IAMClient({
     credentials: {
-      accessKeyId: creds.AccessKeyId!,
-      secretAccessKey: creds.SecretAccessKey!,
-      sessionToken: creds.SessionToken!,
+      accessKeyId: AccessKeyId,
+      secretAccessKey: SecretAccessKey,
+      sessionToken: SessionToken,
     },
   });
 }

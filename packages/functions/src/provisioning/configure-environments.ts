@@ -13,11 +13,13 @@ import { createSign } from 'node:crypto';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import sodium from 'libsodium-wrappers';
 
+import { requiredEnv } from '../runtime-env';
+
 const secretsClient = new SecretsManagerClient({});
 
-const GITHUB_APP_ID = process.env.GITHUB_APP_ID!;
-const GITHUB_PRIVATE_KEY_SECRET_ARN = process.env.GITHUB_PRIVATE_KEY_SECRET_ARN!;
-const GITHUB_INSTALLATION_ID = process.env.GITHUB_INSTALLATION_ID!;
+const GITHUB_APP_ID = requiredEnv('GITHUB_APP_ID');
+const GITHUB_PRIVATE_KEY_SECRET_ARN = requiredEnv('GITHUB_PRIVATE_KEY_SECRET_ARN');
+const GITHUB_INSTALLATION_ID = requiredEnv('GITHUB_INSTALLATION_ID');
 
 interface ProvisionedAccount {
   name: string;
@@ -37,7 +39,8 @@ async function getGitHubToken(): Promise<string> {
   const secret = await secretsClient.send(
     new GetSecretValueCommand({ SecretId: GITHUB_PRIVATE_KEY_SECRET_ARN })
   );
-  const privateKey = secret.SecretString!;
+  const privateKey = secret.SecretString;
+  if (!privateKey) throw new Error('GitHub private key secret is empty');
   const jwt = createGitHubAppJwt(privateKey);
 
   const tokenResponse = await fetch(

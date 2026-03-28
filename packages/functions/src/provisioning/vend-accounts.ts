@@ -7,20 +7,14 @@
  * returns the existing account ID without creating a duplicate.
  */
 
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   CreateAccountCommand,
   DescribeCreateAccountStatusCommand,
   ListAccountsCommand,
   OrganizationsClient,
 } from '@aws-sdk/client-organizations';
-import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
-
-const TABLE_NAME = process.env.TABLE_NAME!;
 
 const orgClient = new OrganizationsClient({ region: 'us-east-1' }); // Organizations API is us-east-1 only
-const dynamoClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 interface VendAccountInput {
   name: string;

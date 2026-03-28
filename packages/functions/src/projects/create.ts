@@ -11,9 +11,10 @@ import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import type { AppSyncResolverHandler } from 'aws-lambda';
 
 import { listGithubReposForTemplate } from '../provisioning/list-github-repos';
+import { requiredEnv } from '../runtime-env';
 
-const TABLE_NAME = process.env.TABLE_NAME!;
-const STATE_MACHINE_ARN = process.env.STATE_MACHINE_ARN!;
+const TABLE_NAME = requiredEnv('TABLE_NAME');
+const STATE_MACHINE_ARN = requiredEnv('STATE_MACHINE_ARN');
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);

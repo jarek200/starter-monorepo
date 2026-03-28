@@ -138,7 +138,9 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   })) as GraphQLResult<{ createProject: Project }>;
 
   if (result.errors?.length) throw new Error(result.errors[0]?.message);
-  return result.data!.createProject;
+  const created = result.data?.createProject;
+  if (!created) throw new Error('createProject returned no data');
+  return created;
 }
 
 export async function updateProject(id: string, input: UpdateProjectInput): Promise<Project> {
@@ -153,7 +155,9 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
   })) as GraphQLResult<{ updateProject: Project }>;
 
   if (result.errors?.length) throw new Error(result.errors[0]?.message);
-  return result.data!.updateProject;
+  const updated = result.data?.updateProject;
+  if (!updated) throw new Error('updateProject returned no data');
+  return updated;
 }
 
 export async function deleteProject(id: string): Promise<boolean> {

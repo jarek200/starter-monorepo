@@ -4,10 +4,10 @@ name: Deploy
 # Each label routes to one environment job; only the matching job runs.
 #
 # Promotion flow (add labels in order):
-#   1. deploy:dev   --> deploys SST + Webiny to the dev AWS account
-#   2. deploy:stage --> deploys SST + Webiny to the stage AWS account
+#   1. deploy:dev   --> deploys SST to the dev AWS account
+#   2. deploy:stage --> deploys SST to the stage AWS account
 #                       (blocked unless deploy:dev label is also present)
-#   3. deploy:prod  --> deploys SST + Webiny to the prod AWS account
+#   3. deploy:prod  --> deploys SST to the prod AWS account
 #                       (blocked unless both deploy:dev and deploy:stage are present)
 #                       (also gated by GitHub Environment required reviewers)
 #
@@ -20,7 +20,6 @@ name: Deploy
 #      Condition: token.actions.githubusercontent.com:sub =
 #        "repo:<org>/<repo>:environment:<env-name>"
 #
-# See platform/webiny/README.md for Webiny-specific setup.
 # See README.md > "GitHub Actions & Labels" for the full deployment guide.
 
 on:
@@ -60,27 +59,6 @@ jobs:
       - name: Deploy SST → dev
         run: pnpm exec sst deploy --stage dev
 
-      - name: Cache Webiny Yarn dependencies
-        if: hashFiles('platform/webiny/package.json') != ''
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/yarn
-            platform/webiny/.yarn/cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('platform/webiny/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Install Webiny dependencies
-        if: hashFiles('platform/webiny/package.json') != ''
-        working-directory: platform/webiny
-        run: yarn install
-
-      - name: Deploy Webiny → dev
-        if: hashFiles('platform/webiny/package.json') != ''
-        working-directory: platform/webiny
-        run: yarn webiny deploy --env dev
-
   # ──────────────────────────────────────────────────────────
   # STAGE
   # ──────────────────────────────────────────────────────────
@@ -118,27 +96,6 @@ jobs:
 
       - name: Deploy SST → stage
         run: pnpm exec sst deploy --stage stage
-
-      - name: Cache Webiny Yarn dependencies
-        if: hashFiles('platform/webiny/package.json') != ''
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/yarn
-            platform/webiny/.yarn/cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('platform/webiny/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Install Webiny dependencies
-        if: hashFiles('platform/webiny/package.json') != ''
-        working-directory: platform/webiny
-        run: yarn install
-
-      - name: Deploy Webiny → stage
-        if: hashFiles('platform/webiny/package.json') != ''
-        working-directory: platform/webiny
-        run: yarn webiny deploy --env stage
 
   # ──────────────────────────────────────────────────────────
   # PROD
@@ -182,24 +139,3 @@ jobs:
 
       - name: Deploy SST → prod
         run: pnpm exec sst deploy --stage prod
-
-      - name: Cache Webiny Yarn dependencies
-        if: hashFiles('platform/webiny/package.json') != ''
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/yarn
-            platform/webiny/.yarn/cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('platform/webiny/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Install Webiny dependencies
-        if: hashFiles('platform/webiny/package.json') != ''
-        working-directory: platform/webiny
-        run: yarn install
-
-      - name: Deploy Webiny → prod
-        if: hashFiles('platform/webiny/package.json') != ''
-        working-directory: platform/webiny
-        run: yarn webiny deploy --env prod

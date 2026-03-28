@@ -9,8 +9,7 @@ A modern, production-ready platform template for building full-stack serverless 
 - **Database**: DynamoDB (single-table design)
 - **Authentication**: AWS Cognito User Pools
 - **Infrastructure**: SST v4 with Pulumi
-- **CMS**: Webiny v6 (headless, serverless, isolated under `platform/webiny`)
-- **Monorepo**: pnpm workspaces + Turborepo (task caching) (Webiny uses its own Yarn workspace)
+- **Monorepo**: pnpm workspaces + Turborepo (task caching)
 
 ## Architecture overview
 
@@ -20,9 +19,6 @@ pnpm workspace (root)
 ├── packages/         Shared code (core, graphql, functions)
 ├── infra/            SST infrastructure modules (AppSync, Cognito, DynamoDB)
 └── sst.config.ts     SST v4 config — stage-aware, multi-account
-
-Yarn workspace (isolated)
-└── platform/webiny   Webiny v6 CMS — deployed per env alongside SST
 ```
 
 ## Environments
@@ -43,7 +39,6 @@ uses the `remove` policy — safe for short-lived personal stacks.
 - **Node.js 22** (`nvm install 22`)
 - **pnpm** (`npm install -g pnpm`)
 - **AWS CLI** and SSO configured (see [Local AWS setup](#local-aws-setup))
-- **Yarn** (`npm install -g yarn`) — for Webiny only
 
 ## Quick Start
 
@@ -156,11 +151,6 @@ sst-monorepo/
 │       └── resolvers/            GraphQL resolvers (JS, AppSync-native)
 │           ├── index.ts
 │           └── users.ts
-├── platform/
-│   └── webiny/                   Webiny v6 CMS (Yarn workspace, isolated)
-│       ├── README.md             Webiny setup and deploy guide
-│       ├── Makefile              Convenient per-env deploy commands
-│       └── .env.example          Environment variable template
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml                Quality gate (lint, typecheck, test, build)
@@ -205,7 +195,7 @@ Deployment is triggered by **adding labels to an open PR**:
 
 ```
 Open PR
-  └─ add label "deploy:dev"   → deploys SST + Webiny to dev account
+  └─ add label "deploy:dev"   → deploys SST to dev account
        └─ passes → add label "deploy:stage" → deploys to stage account
             └─ passes → add label "deploy:prod"  → deploys to prod account
                  └─ passes → merge PR
@@ -240,21 +230,6 @@ In your GitHub repo, create these labels (Settings → Labels):
 | `deploy:dev`    | `#0075ca`         | Trigger dev deployment    |
 | `deploy:stage`  | `#e4e669`         | Trigger stage deployment  |
 | `deploy:prod`   | `#d93f0b`         | Trigger prod deployment   |
-
-## Webiny v6 CMS
-
-Webiny lives under `platform/webiny/` in its own Yarn workspace.
-
-First-time setup:
-
-```bash
-cd platform/webiny
-npx create-webiny-project@latest .
-yarn webiny deploy --env dev
-```
-
-See [`platform/webiny/README.md`](platform/webiny/README.md) for the full setup guide, env wiring,
-and per-environment deploy commands.
 
 ## GraphQL code generation
 
@@ -315,9 +290,6 @@ For a new app with fewer than 1,000 users:
 | Lambda     | 1M requests, 400K GB-seconds            | $0             |
 | CloudFront | 1 TB data transfer                      | $0–5/month     |
 | **Total**  |                                         | **$0–20/month**|
-
-Webiny adds its own resources (Lambda, DynamoDB, Elasticsearch optional, CloudFront) — see
-[Webiny pricing docs](https://www.webiny.com/pricing) for details.
 
 ## License
 

@@ -11,11 +11,13 @@
 
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 
+import { requiredEnv } from '../runtime-env';
+
 const secretsClient = new SecretsManagerClient({});
 
-const GITHUB_APP_ID = process.env.GITHUB_APP_ID!;
-const GITHUB_PRIVATE_KEY_SECRET_ARN = process.env.GITHUB_PRIVATE_KEY_SECRET_ARN!;
-const GITHUB_INSTALLATION_ID = process.env.GITHUB_INSTALLATION_ID!;
+const GITHUB_APP_ID = requiredEnv('GITHUB_APP_ID');
+const GITHUB_PRIVATE_KEY_SECRET_ARN = requiredEnv('GITHUB_PRIVATE_KEY_SECRET_ARN');
+const GITHUB_INSTALLATION_ID = requiredEnv('GITHUB_INSTALLATION_ID');
 
 interface ProvisionedAccount {
   name: string;
@@ -44,7 +46,8 @@ async function getGitHubToken(): Promise<string> {
   const secret = await secretsClient.send(
     new GetSecretValueCommand({ SecretId: GITHUB_PRIVATE_KEY_SECRET_ARN })
   );
-  const privateKey = secret.SecretString!;
+  const privateKey = secret.SecretString;
+  if (!privateKey) throw new Error('GitHub private key secret is empty');
 
   // Create JWT for GitHub App authentication
   const jwt = await createGitHubAppJwt(privateKey);
@@ -121,7 +124,6 @@ async function githubRequest(
 
 function buildDeployWorkflow(accounts: ProvisionedAccount[]): string {
   const envKeys = accounts.map((a) => a.envKey);
-  const envList = envKeys.map((e) => `          - ${e}`).join('\n');
 
   return `name: Deploy
 
@@ -214,8 +216,9 @@ export const handler = async (event: CreateRepoInput): Promise<CreateRepoOutput 
         `/repos/${repo.full_name}/contents/${workflowPath}`
       )) as { sha: string };
       currentSha = currentFile.sha;
-    } catch (err: any) {
-      if (err.message && err.message.includes('404')) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('404')) {
         console.log(`Workflow file ${workflowPath} not found. Proceeding to create it.`);
       } else {
         throw err;
