@@ -1,6 +1,9 @@
 <svelte:head>
-  <title>Login - SST Monorepo Starter</title>
-  <meta name="description" content="Sign in or create an account to get started. Secure authentication powered by AWS Cognito." />
+  <title>Sign in — SST Monorepo Starter</title>
+  <meta
+    name="description"
+    content="Sign in or create an account. Authentication powered by AWS Cognito."
+  />
 </svelte:head>
 
 <script lang="ts">
@@ -16,15 +19,7 @@ import { tick } from 'svelte';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import { page as pageStore } from '$app/stores';
-import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
 import { Button } from '$lib/components/ui/button/index.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '$lib/components/ui/card/index.js';
 import { Input } from '$lib/components/ui/input/index.js';
 import { Label } from '$lib/components/ui/label/index.js';
 import { getMyProfile } from '$lib/services/graphql';
@@ -38,6 +33,10 @@ let loading = $state(false);
 let error = $state('');
 let isLogin = $state(true);
 let needsConfirmation = $state(false);
+
+const inputMinimal =
+  'rounded-none border-x-0 border-t-0 border-b border-border bg-transparent px-0 shadow-none ' +
+  'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-foreground placeholder:text-muted-foreground';
 
 $effect(() => {
   if (!browser) return;
@@ -53,7 +52,7 @@ $effect(() => {
         goto(redirect, { replaceState: true });
       }
     } catch {
-      // Not logged in, stay on login page
+      // Not logged in
     }
   })();
 });
@@ -69,7 +68,6 @@ async function handleSubmit() {
         confirmationCode: confirmationCode,
       });
 
-      // After confirmation, try to sign in automatically
       try {
         const { isSignedIn } = await signIn({
           username: email,
@@ -86,10 +84,9 @@ async function handleSubmit() {
               username = profile.username;
             }
           } catch {
-            // Use email prefix as fallback
+            // fallback
           }
 
-          // Set user but keep loading state active to prevent flash during navigation
           auth.setUser(
             {
               id: user.userId,
@@ -97,7 +94,7 @@ async function handleSubmit() {
               email: email,
             },
             true
-          ); // Keep loading state active
+          );
 
           await tick();
           const redirect = $pageStore.url.searchParams.get('redirect') || '/dashboard';
@@ -105,8 +102,7 @@ async function handleSubmit() {
           return;
         }
       } catch {
-        // If auto sign-in fails, just show login form
-        console.log('Auto sign-in after confirmation failed, showing login form');
+        console.log('Auto sign-in after confirmation failed');
       }
 
       needsConfirmation = false;
@@ -135,10 +131,9 @@ async function handleSubmit() {
             username = profile.username;
           }
         } catch {
-          // Use email prefix as fallback
+          // fallback
         }
 
-        // Set user but keep loading state active to prevent flash during navigation
         auth.setUser(
           {
             id: user.userId,
@@ -146,7 +141,7 @@ async function handleSubmit() {
             email: email,
           },
           true
-        ); // Keep loading state active
+        );
 
         await tick();
         const redirect = $pageStore.url.searchParams.get('redirect') || '/dashboard';
@@ -181,7 +176,6 @@ async function handleSubmit() {
       if (nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
         needsConfirmation = true;
       } else if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
-        // User was auto-confirmed and signed in
         try {
           const user = await getCurrentUser();
           let username = email?.split('@')[0] || user.userId;
@@ -192,10 +186,9 @@ async function handleSubmit() {
               username = profile.username;
             }
           } catch {
-            // Use email prefix as fallback
+            // fallback
           }
 
-          // Set user but keep loading state active to prevent flash during navigation
           auth.setUser(
             {
               id: user.userId,
@@ -203,13 +196,12 @@ async function handleSubmit() {
               email: email,
             },
             true
-          ); // Keep loading state active
+          );
 
           await tick();
           const redirect = $pageStore.url.searchParams.get('redirect') || '/dashboard';
           goto(redirect, { replaceState: true });
         } catch {
-          // If auto sign-in failed, show login form
           isLogin = true;
           error = 'Account created! Please sign in.';
         }
@@ -224,7 +216,6 @@ async function handleSubmit() {
 
     if (authError.name === 'NotAuthorizedException') {
       if (authError.message?.includes('CONFIRMED')) {
-        // User is already confirmed, try to sign them in instead
         error = 'Account already confirmed. Please sign in.';
         needsConfirmation = false;
         isLogin = true;
@@ -256,174 +247,136 @@ function toggleMode() {
   error = '';
   needsConfirmation = false;
 }
-
-function handleReturnToLanding() {
-  goto('/', { replaceState: false });
-}
 </script>
 
-<div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900 relative overflow-hidden">
-  <div class="absolute inset-0 overflow-hidden">
-    <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-purple-500/30 rounded-full blur-3xl animate-blob"></div>
-    <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-blue-500/30 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-  </div>
+<main class="flex min-h-dvh flex-col items-center justify-center px-6 py-16 md:px-10">
+  <form
+    class="flex w-full max-w-xs flex-col gap-5"
+    onsubmit={(e) => {
+      e.preventDefault();
+      handleSubmit();
+    }}
+  >
+    <div>
+      <button
+        type="button"
+        class="text-muted-foreground text-xs underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground"
+        onclick={() => goto('/')}
+      >
+        ← Back
+      </button>
+    </div>
 
-  <Card class="w-full max-w-md relative z-10 bg-white/10 backdrop-blur-xl border-0">
-    <CardHeader>
-      <div class="mb-4">
-        <Button
-          type="button"
-          variant="ghost"
-          onclick={handleReturnToLanding}
-          class="flex items-center text-sm text-gray-300 hover:text-white hover:bg-transparent transition-colors p-0 h-auto"
-          aria-label="Return to landing page"
-        >
-          <svg
-            class="w-4 h-4 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back to Home
-        </Button>
+    {#if needsConfirmation}
+      <h1 class="font-medium text-muted-foreground text-xs uppercase tracking-widest">Verify email</h1>
+      <p class="text-[0.75rem] text-muted-foreground leading-relaxed">
+        Enter the code sent to your email.
+      </p>
+      <div class="flex flex-col gap-2">
+        <Label for="code" class="text-muted-foreground text-xs font-normal">Code</Label>
+        <Input
+          id="code"
+          type="text"
+          bind:value={confirmationCode}
+          placeholder="6-digit code"
+          required
+          class={inputMinimal}
+        />
       </div>
-      <CardTitle class="text-white text-center">
-        {needsConfirmation ? 'Verify Email' : isLogin ? 'Welcome Back' : 'Create Account'}
-      </CardTitle>
-      <CardDescription class="text-gray-300 text-center">
-        {needsConfirmation 
-          ? 'Enter the verification code sent to your email' 
-          : isLogin 
-            ? 'Sign in to continue' 
-            : 'Sign up to get started'}
-      </CardDescription>
-    </CardHeader>
+    {:else if isLogin}
+      <h1 class="font-medium text-muted-foreground text-xs uppercase tracking-widest">Sign in</h1>
+      <div class="flex flex-col gap-2">
+        <Label for="email" class="text-muted-foreground text-xs font-normal">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          name="email"
+          autocomplete="username"
+          placeholder="you@company.com"
+          bind:value={email}
+          required
+          class={inputMinimal}
+        />
+      </div>
+      <div class="flex flex-col gap-2">
+        <Label for="password" class="text-muted-foreground text-xs font-normal">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          name="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          bind:value={password}
+          required
+          class={inputMinimal}
+        />
+      </div>
+    {:else}
+      <h1 class="font-medium text-muted-foreground text-xs uppercase tracking-widest">Create account</h1>
+      <div class="flex flex-col gap-2">
+        <Label for="email" class="text-muted-foreground text-xs font-normal">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          name="email"
+          autocomplete="username"
+          placeholder="you@company.com"
+          bind:value={email}
+          required
+          class={inputMinimal}
+        />
+      </div>
+      <div class="flex flex-col gap-2">
+        <Label for="password" class="text-muted-foreground text-xs font-normal">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          name="password"
+          autocomplete="new-password"
+          placeholder="••••••••"
+          bind:value={password}
+          required
+          class={inputMinimal}
+        />
+      </div>
+      <div class="flex flex-col gap-2">
+        <Label for="confirmPassword" class="text-muted-foreground text-xs font-normal">
+          Confirm password
+        </Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          autocomplete="new-password"
+          placeholder="••••••••"
+          bind:value={confirmPassword}
+          required
+          class={inputMinimal}
+        />
+      </div>
+    {/if}
 
-    <CardContent>
-      <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-4">
-        {#if needsConfirmation}
-          <div class="space-y-2">
-            <Label for="code" class="text-gray-200">
-              Verification Code
-            </Label>
-            <Input
-              id="code"
-              type="text"
-              bind:value={confirmationCode}
-              placeholder="Enter 6-digit code"
-              required
-              class="bg-white/10 border-0 text-white placeholder:text-gray-400"
-            />
-          </div>
+    {#if error}
+      <p class="text-[0.75rem] text-destructive">{error}</p>
+    {/if}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            class="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-          >
-            {loading ? 'Verifying...' : 'Verify Email'}
-          </Button>
-        {:else}
-          <div class="space-y-2">
-            <Label for="email" class="text-gray-200">
-              Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              bind:value={email}
-              placeholder="you@example.com"
-              required
-              class="bg-white/10 border-0 text-white placeholder:text-gray-400"
-            />
-          </div>
+    <Button type="submit" disabled={loading} class="mt-1 w-full rounded-sm">
+      {#if needsConfirmation}
+        {loading ? 'Please wait…' : 'Verify'}
+      {:else if isLogin}
+        {loading ? 'Please wait…' : 'Continue'}
+      {:else}
+        {loading ? 'Please wait…' : 'Create account'}
+      {/if}
+    </Button>
 
-          <div class="space-y-2">
-            <Label for="password" class="text-gray-200">
-              Password
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              bind:value={password}
-              placeholder="••••••••"
-              required
-              class="bg-white/10 border-0 text-white placeholder:text-gray-400"
-            />
-          </div>
-
-          {#if !isLogin}
-            <div class="space-y-2">
-              <Label for="confirmPassword" class="text-gray-200">
-                Confirm Password
-              </Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                bind:value={confirmPassword}
-                placeholder="••••••••"
-                required
-                class="bg-white/10 border-0 text-white placeholder:text-gray-400"
-              />
-            </div>
-          {/if}
-
-          {#if error}
-            <Alert variant="destructive" class="bg-red-500/20 border-red-500/50">
-              <AlertDescription class="text-red-200">{error}</AlertDescription>
-            </Alert>
-          {/if}
-
-          <Button
-            type="submit"
-            disabled={loading}
-            class="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-          >
-            {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Sign Up'}
-          </Button>
-        {/if}
-
-        <div class="text-center">
-          <Button
-            type="button"
-            variant="ghost"
-            onclick={toggleMode}
-            class="text-sm text-gray-300 hover:text-white hover:bg-transparent transition-colors p-0 h-auto"
-          >
-            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-          </Button>
-        </div>
-      </form>
-    </CardContent>
-  </Card>
-</div>
-
-<style>
-  @keyframes blob {
-    0%, 100% {
-      transform: translate(0, 0) scale(1);
-    }
-    33% {
-      transform: translate(30px, -50px) scale(1.1);
-    }
-    66% {
-      transform: translate(-20px, 20px) scale(0.9);
-    }
-  }
-
-  .animate-blob {
-    animation: blob 7s infinite;
-  }
-
-  .animation-delay-2000 {
-    animation-delay: 2s;
-  }
-</style>
+    {#if !needsConfirmation}
+      <button
+        type="button"
+        class="text-center text-muted-foreground text-xs underline decoration-muted-foreground/60 underline-offset-4 hover:text-foreground"
+        onclick={toggleMode}
+      >
+        {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+      </button>
+    {/if}
+  </form>
+</main>

@@ -1,6 +1,5 @@
 <script lang="ts">
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
-import { tick } from 'svelte';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import { auth } from '$lib/stores/auth';
@@ -8,12 +7,8 @@ import { auth } from '$lib/stores/auth';
 const { children } = $props<{ children: import('svelte').Snippet }>();
 
 let checking = $state(true);
-let error = $state('');
-
-// Track auth store loading state to show loading during transitions
 let authLoading = $state(true);
 
-// Subscribe to auth store to track loading state
 $effect(() => {
   const unsubscribe = auth.subscribe((state) => {
     authLoading = state.isLoading;
@@ -52,8 +47,8 @@ async function checkAuth() {
       if (profile?.username) {
         username = profile.username;
       }
-    } catch (error) {
-      // Use email prefix as fallback
+    } catch {
+      // fallback
     }
 
     auth.setUser({
@@ -62,8 +57,6 @@ async function checkAuth() {
       email: loginId,
     });
 
-    // Keep loading state until dashboard is ready
-    // The dashboard page will set loading to false when it's ready
     checking = false;
   } catch (err) {
     console.error('Auth failed:', err);
@@ -73,10 +66,15 @@ async function checkAuth() {
 </script>
 
 {#if checking || authLoading}
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-pink-900">
+  <div class="flex min-h-dvh items-center justify-center bg-background">
     <div class="text-center">
-      <div class="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-white mb-4"></div>
-      <p class="text-white text-xl">{authLoading ? 'Loading...' : 'Verifying authentication...'}</p>
+      <div
+        class="mx-auto mb-4 size-8 animate-spin border-2 border-muted-foreground border-t-foreground"
+        aria-hidden="true"
+      ></div>
+      <p class="text-muted-foreground text-sm">
+        {authLoading ? 'Loading…' : 'Verifying session…'}
+      </p>
     </div>
   </div>
 {:else}

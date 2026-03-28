@@ -1,6 +1,6 @@
 <svelte:head>
-  <title>Dashboard - SST Monorepo Starter</title>
-  <meta name="description" content="Your dashboard - manage your profile and settings." />
+  <title>Dashboard — SST Monorepo Starter</title>
+  <meta name="description" content="Your dashboard — profile and settings." />
 </svelte:head>
 
 <script lang="ts">
@@ -8,16 +8,7 @@ import type { User as GraphQLUser } from '@sst-monorepo/graphql';
 import { signOut } from 'aws-amplify/auth';
 import { onMount } from 'svelte';
 import { goto } from '$app/navigation';
-import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
 import { Button } from '$lib/components/ui/button/index.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '$lib/components/ui/card/index.js';
 import { Input } from '$lib/components/ui/input/index.js';
 import { Label } from '$lib/components/ui/label/index.js';
 import { Skeleton } from '$lib/components/ui/skeleton/index.js';
@@ -25,10 +16,8 @@ import { Textarea } from '$lib/components/ui/textarea/index.js';
 import { getMyProfile, updateUserProfile } from '$lib/services/graphql';
 import { auth, type User } from '$lib/stores/auth';
 
-// Access auth store reactively
 let authState = $state({ user: null as User | null, isAuthenticated: false });
 
-// Subscribe to auth store
 $effect(() => {
   const unsubscribe = auth.subscribe((state) => {
     authState = { user: state.user, isAuthenticated: state.isAuthenticated };
@@ -38,8 +27,12 @@ $effect(() => {
 
 const user = $derived(authState.user);
 
+const inputMinimal =
+  'rounded-none border-x-0 border-t-0 border-b border-border bg-transparent px-0 shadow-none ' +
+  'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-foreground placeholder:text-muted-foreground';
+
 let profile = $state<GraphQLUser | null>(null);
-let loading = $state(true); // Start with loading true to prevent flash
+let loading = $state(true);
 let saving = $state(false);
 let error = $state('');
 let success = $state('');
@@ -48,8 +41,6 @@ let name = $state('');
 let bio = $state('');
 
 onMount(async () => {
-  // Set auth loading to false once dashboard starts loading
-  // This ensures smooth transition from login
   auth.setLoading(false);
   await loadProfile();
 });
@@ -63,8 +54,7 @@ async function loadProfile() {
     name = data?.name || '';
     bio = data?.bio || '';
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to load profile';
-    error = errorMessage;
+    error = err instanceof Error ? err.message : 'Failed to load profile';
   } finally {
     loading = false;
   }
@@ -82,9 +72,8 @@ async function saveProfile() {
     });
 
     profile = updated;
-    success = 'Profile updated successfully!';
+    success = 'Saved.';
 
-    // Update auth store
     if (user && updated) {
       auth.setUser({
         id: user.id,
@@ -95,10 +84,9 @@ async function saveProfile() {
 
     setTimeout(() => {
       success = '';
-    }, 3000);
+    }, 2500);
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';
-    error = errorMessage;
+    error = err instanceof Error ? err.message : 'Failed to update profile';
   } finally {
     saving = false;
   }
@@ -115,151 +103,108 @@ async function handleLogout() {
 }
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-  <!-- Header -->
-  <header class="bg-white shadow-sm border-b">
-    <div class="container mx-auto px-4 py-4">
-      <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <div class="flex items-center gap-4">
-          {#if user}
-            <span class="text-gray-600">Welcome, {user.username}!</span>
-          {/if}
-          <Button variant="outline" onclick={handleLogout}>
-            Logout
-          </Button>
-        </div>
+<div class="min-h-dvh bg-background text-foreground">
+  <header class="border-border border-b px-6 py-4 md:px-10">
+    <div class="mx-auto flex max-w-2xl items-center justify-between gap-4">
+      <h1 class="font-display font-semibold text-base tracking-tight md:text-lg">Dashboard</h1>
+      <div class="flex items-center gap-4">
+        {#if user}
+          <span class="hidden text-muted-foreground text-sm sm:inline">{user.username}</span>
+        {/if}
+        <Button type="button" variant="outline" class="rounded-sm border-border" onclick={handleLogout}>
+          Sign out
+        </Button>
       </div>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="container mx-auto px-4 py-8">
+  <main class="mx-auto max-w-2xl px-6 py-10 md:px-10">
     {#if loading}
-      <div class="max-w-2xl mx-auto space-y-6">
-        <Card>
-          <CardHeader>
-            <Skeleton class="h-8 w-48" />
-            <Skeleton class="h-4 w-64" />
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="space-y-2">
-              <Skeleton class="h-4 w-20" />
-              <Skeleton class="h-10 w-full" />
-            </div>
-            <div class="space-y-2">
-              <Skeleton class="h-4 w-24" />
-              <Skeleton class="h-10 w-full" />
-            </div>
-            <div class="space-y-2">
-              <Skeleton class="h-4 w-32" />
-              <Skeleton class="h-24 w-full" />
-            </div>
-          </CardContent>
-        </Card>
+      <div class="space-y-6">
+        <Skeleton class="h-8 w-40 rounded-sm bg-muted" />
+        <Skeleton class="h-10 w-full rounded-sm bg-muted" />
+        <Skeleton class="h-10 w-full rounded-sm bg-muted" />
+        <Skeleton class="h-24 w-full rounded-sm bg-muted" />
       </div>
     {:else if profile}
-      <div class="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Settings</CardTitle>
-            <CardDescription>Update your profile information</CardDescription>
-          </CardHeader>
-          
-          <CardContent class="space-y-4">
-            {#if error}
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            {/if}
-            
-            {#if success}
-              <Alert>
-                <AlertDescription class="text-green-600">{success}</AlertDescription>
-              </Alert>
-            {/if}
+      <div class="space-y-10">
+        <div>
+          <h2 class="font-medium text-muted-foreground text-xs uppercase tracking-widest">Profile</h2>
+          <p class="mt-2 text-[0.75rem] text-muted-foreground leading-relaxed">
+            Update how you appear in the app. Email and username stay tied to your Cognito account.
+          </p>
+        </div>
 
-            <div class="space-y-2">
-              <Label for="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={profile.email}
-                disabled
-                class="bg-gray-50"
-              />
-              <CardDescription class="text-xs">Email cannot be changed</CardDescription>
-            </div>
+        {#if error}
+          <p class="text-[0.75rem] text-destructive">{error}</p>
+        {/if}
+        {#if success}
+          <p class="text-[0.75rem] text-muted-foreground">{success}</p>
+        {/if}
 
-            <div class="space-y-2">
-              <Label for="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                value={profile.username}
-                disabled
-                class="bg-gray-50"
-              />
-              <CardDescription class="text-xs">Username cannot be changed</CardDescription>
-            </div>
+        <div class="space-y-6">
+          <div class="flex flex-col gap-2">
+            <Label for="email" class="text-muted-foreground text-xs font-normal">Email</Label>
+            <Input id="email" type="email" value={profile.email} disabled class={inputMinimal} />
+          </div>
 
-            <div class="space-y-2">
-              <Label for="name">Display Name</Label>
-              <Input
-                id="name"
-                type="text"
-                bind:value={name}
-                placeholder="Your display name"
-              />
-            </div>
+          <div class="flex flex-col gap-2">
+            <Label for="username" class="text-muted-foreground text-xs font-normal">Username</Label>
+            <Input id="username" type="text" value={profile.username} disabled class={inputMinimal} />
+          </div>
 
-            <div class="space-y-2">
-              <Label for="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                bind:value={bio}
-                placeholder="Tell us about yourself..."
-                rows={4}
-              />
-            </div>
-          </CardContent>
+          <div class="flex flex-col gap-2">
+            <Label for="name" class="text-muted-foreground text-xs font-normal">Display name</Label>
+            <Input
+              id="name"
+              type="text"
+              bind:value={name}
+              placeholder="Your name"
+              class={inputMinimal}
+            />
+          </div>
 
-          <CardFooter class="flex gap-4">
-            <Button
-              onclick={saveProfile}
-              disabled={saving}
-              class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
-            <Button
-              variant="outline"
-              onclick={loadProfile}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-          </CardFooter>
-        </Card>
+          <div class="flex flex-col gap-2">
+            <Label for="bio" class="text-muted-foreground text-xs font-normal">Bio</Label>
+            <Textarea
+              id="bio"
+              bind:value={bio}
+              placeholder="Short introduction"
+              rows={4}
+              class="rounded-sm border border-border bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:outline-none"
+            />
+          </div>
+        </div>
 
-        <!-- Account Info Card -->
-        <Card class="mt-6">
-          <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div class="space-y-2 text-sm">
-              <p><span class="font-medium">User ID:</span> {profile.userId}</p>
-              <p><span class="font-medium">Created:</span> {new Date(profile.createdAt).toLocaleDateString()}</p>
-              <p><span class="font-medium">Last Updated:</span> {new Date(profile.updatedAt).toLocaleDateString()}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div class="flex flex-wrap gap-3">
+          <Button type="button" class="rounded-sm" disabled={saving} onclick={saveProfile}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            class="rounded-sm border-border"
+            disabled={saving}
+            onclick={loadProfile}
+          >
+            Reset
+          </Button>
+        </div>
+
+        <div class="border-border border-t pt-8 text-[0.75rem] text-muted-foreground leading-relaxed">
+          <p><span class="text-foreground">User ID</span> — {profile.userId}</p>
+          <p class="mt-2">
+            <span class="text-foreground">Created</span> —
+            {new Date(profile.createdAt).toLocaleDateString()}
+          </p>
+          <p class="mt-2">
+            <span class="text-foreground">Updated</span> —
+            {new Date(profile.updatedAt).toLocaleDateString()}
+          </p>
+        </div>
       </div>
     {:else}
-      <div class="text-center py-12">
-        <p class="text-gray-600">No profile found</p>
-      </div>
+      <p class="text-muted-foreground text-sm">No profile found.</p>
     {/if}
   </main>
 </div>
