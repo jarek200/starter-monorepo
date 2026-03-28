@@ -27,7 +27,95 @@ type ProjectRow = {
   accountCostsPredicted?: string[];
   /** Newly added row: show Save/Cancel until saved */
   isDraft?: boolean;
+  /** After save: simulated hook-up progress (billing → accounts → GitHub) */
+  provisioning?: ProjectProvisioning | null;
 };
+
+type ProvisioningStepKey = 'billing' | 'accounts' | 'github';
+
+type ProvisioningStepState = 'pending' | 'running' | 'done';
+
+type ProjectProvisioning = Record<ProvisioningStepKey, ProvisioningStepState> & {
+  /** Overall bar fill 0–100 (billing → accounts → GitHub) */
+  progress: number;
+};
+
+/** Simulation only: ~2 min end-to-end (AWS account creation pacing). */
+const PROVISION_SIM_BILLING_MS = 38_000;
+const PROVISION_SIM_ACCOUNTS_MS = 72_000;
+const PROVISION_SIM_GITHUB_MS = 28_000;
+
+function clampPct(n: number): number {
+  return Math.min(100, Math.max(0, n));
+}
+
+/** Account IDs stay hidden until the provisioning “accounts” step completes */
+function accountIdsPendingProvisioning(
+  provisioning: ProjectProvisioning | null | undefined,
+): boolean {
+  return provisioning != null && provisioning.accounts !== 'done';
+}
+
+/** Spend columns until billing is linked and accounts exist for CUR-style data */
+function costsPendingProvisioning(
+  provisioning: ProjectProvisioning | null | undefined,
+): boolean {
+  return (
+    provisioning != null &&
+    (provisioning.billing !== 'done' || provisioning.accounts !== 'done')
+  );
+}
+
+/** IAM / org console entry until target accounts are members */
+function awsAssignPendingProvisioning(
+  provisioning: ProjectProvisioning | null | undefined,
+): boolean {
+  return provisioning != null && provisioning.accounts !== 'done';
+}
+
+/** Repo, OIDC, or deploy hooks until the GitHub step completes */
+function githubIntegrationPending(
+  provisioning: ProjectProvisioning | null | undefined,
+): boolean {
+  return provisioning != null && provisioning.github !== 'done';
+}
+
+/** Marketing / app URL often not routable until later in the pipeline */
+function websitePendingProvisioning(
+  provisioning: ProjectProvisioning | null | undefined,
+): boolean {
+  return provisioning != null && provisioning.github !== 'done';
+}
+
+function animateProvisioningProgress(
+  projectId: string,
+  fromPct: number,
+  toPct: number,
+  durationMs: number,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const step = () => {
+      const row = projects.find((p) => p.id === projectId);
+      if (!row?.provisioning) {
+        resolve();
+        return;
+      }
+      const elapsed = performance.now() - start;
+      const u = durationMs <= 0 ? 1 : Math.min(1, elapsed / durationMs);
+      const progress = clampPct(fromPct + (toPct - fromPct) * u);
+      patchProject(projectId, {
+        provisioning: { ...row.provisioning, progress },
+      });
+      if (u >= 1) {
+        resolve();
+        return;
+      }
+      setTimeout(step, 110);
+    };
+    step();
+  });
+}
 
 /** Plain USD amounts (grouping); `$` lives in column headers only */
 const costAmountFormatter = new Intl.NumberFormat('en-US', {
@@ -177,6 +265,74 @@ function addProject() {
   accordionValue = [id];
 }
 
+const RANDOM_PROJECT_ADJECTIVES = [
+  'nimbus',
+  'velvet',
+  'pixel',
+  'cobalt',
+  'quiet',
+  'lumen',
+  'north',
+] as const;
+const RANDOM_PROJECT_NOUNS = ['forge', 'ledger', 'atlas', 'beacon', 'harbor', 'relay', 'vault'] as const;
+const RANDOM_TEMPLATE_LABELS = [
+  'SST monorepo starter',
+  'SvelteKit + AppSync stack',
+  'Lambda edge prototype',
+  'Empty workspace',
+] as const;
+
+function pickRandom<const T extends readonly string[]>(arr: T): T[number] {
+  return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+function randomUsdTriplet(): [string, string, string] {
+  const tier = () => String(60 + Math.floor(Math.random() * 380));
+  const high = () => String(180 + Math.floor(Math.random() * 2400));
+  return [tier(), tier(), high()];
+}
+
+function randomAwsHint(): string {
+  return String(Math.floor(100000000000 + Math.random() * 900000000000));
+}
+
+/** Simulation: prefilled project + provisioning strip (billing → accounts → GitHub). */
+function addDefaultRandomProject() {
+  const id = crypto.randomUUID();
+  const adj = pickRandom(RANDOM_PROJECT_ADJECTIVES);
+  const noun = pickRandom(RANDOM_PROJECT_NOUNS);
+  const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const name = `${titleCase(adj)} ${titleCase(noun)}`;
+  const slug = slugify(`${adj}-${noun}-${100 + Math.floor(Math.random() * 899)}`);
+  const base = slugify(adj).slice(0, 10) || 'app';
+  const accountNames = [`${base}-int`, `${base}-stage`, `${base}-prod`];
+  const last = randomUsdTriplet();
+  const cur = randomUsdTriplet();
+  const pred = randomUsdTriplet();
+
+  projects = [
+    {
+      id,
+      name,
+      slug,
+      accountNames,
+      createdLabel: shortDate(new Date()),
+      templateLabel: pickRandom(RANDOM_TEMPLATE_LABELS),
+      detailBlurb: 'Demo row for provisioning preview.',
+      accountHints: [randomAwsHint(), randomAwsHint(), randomAwsHint()],
+      accountCostsLastMonth: [last[0], last[1], last[2]],
+      accountCostsCurrent: [cur[0], cur[1], cur[2]],
+      accountCostsPredicted: [pred[0], pred[1], pred[2]],
+      websiteUrl: `https://${slug}.example.com`,
+      githubUrl: `https://github.com/demo-org/${slug}`,
+      awsSignInUrl: DEFAULT_AWS_SIGNIN_URL,
+    },
+    ...projects,
+  ];
+  accordionValue = [id];
+  beginProvisioningSimulation(id);
+}
+
 function setAccountCount(projectId: string, count: number) {
   const target = clampCount(count);
   projects = projects.map((p) => {
@@ -211,8 +367,72 @@ function patchProject(id: string, patch: Partial<ProjectRow>) {
   projects = projects.map((p) => (p.id === id ? { ...p, ...patch } : p));
 }
 
+function beginProvisioningSimulation(projectId: string) {
+  const initial: ProjectProvisioning = {
+    billing: 'running',
+    accounts: 'pending',
+    github: 'pending',
+    progress: 0,
+  };
+  patchProject(projectId, { isDraft: false, provisioning: initial });
+
+  const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+  void (async () => {
+    const stillHere = () => projects.some((p) => p.id === projectId && p.provisioning != null);
+
+    await animateProvisioningProgress(projectId, 0, 33, PROVISION_SIM_BILLING_MS);
+    if (!stillHere()) return;
+    {
+      const row = projects.find((p) => p.id === projectId);
+      if (!row?.provisioning) return;
+      patchProject(projectId, {
+        provisioning: {
+          ...row.provisioning,
+          billing: 'done',
+          accounts: 'running',
+          progress: 33,
+        },
+      });
+    }
+
+    await animateProvisioningProgress(projectId, 33, 66, PROVISION_SIM_ACCOUNTS_MS);
+    if (!stillHere()) return;
+    {
+      const row = projects.find((p) => p.id === projectId);
+      if (!row?.provisioning) return;
+      patchProject(projectId, {
+        provisioning: {
+          ...row.provisioning,
+          accounts: 'done',
+          github: 'running',
+          progress: 66,
+        },
+      });
+    }
+
+    await animateProvisioningProgress(projectId, 66, 100, PROVISION_SIM_GITHUB_MS);
+    if (!stillHere()) return;
+    {
+      const row = projects.find((p) => p.id === projectId);
+      if (!row?.provisioning) return;
+      patchProject(projectId, {
+        provisioning: {
+          ...row.provisioning,
+          github: 'done',
+          progress: 100,
+        },
+      });
+    }
+
+    await wait(2200);
+    if (!stillHere()) return;
+    patchProject(projectId, { provisioning: null });
+  })();
+}
+
 function saveDraftProject(id: string) {
-  patchProject(id, { isDraft: false });
+  beginProvisioningSimulation(id);
 }
 
 function discardDraftProject(id: string) {
@@ -240,6 +460,11 @@ function cloneProjectRow(row: ProjectRow): ProjectRow {
     accountCostsCurrent: row.accountCostsCurrent ? [...row.accountCostsCurrent] : undefined,
     accountCostsPredicted: row.accountCostsPredicted ? [...row.accountCostsPredicted] : undefined,
     isDraft: row.isDraft,
+    provisioning: row.provisioning
+      ? { ...row.provisioning }
+      : row.provisioning === null
+        ? null
+        : undefined,
   };
 }
 
@@ -449,6 +674,36 @@ const accountMobileFieldLabelClass =
     </span>
   {/snippet}
 
+  {#snippet provisioningFieldDots(className: string, ariaLabel: string)}
+    <span class="acct-id-loading-dots {className}" role="status" aria-label={ariaLabel}>
+      <span></span><span></span><span></span>
+    </span>
+  {/snippet}
+
+  {#snippet accountIdDotsPlaceholder()}
+    {@render provisioningFieldDots(
+      'text-emerald-500/90',
+      'AWS account id not created yet',
+    )}
+  {/snippet}
+
+  {#snippet accountWebsiteLinkOrLoading(p: ProjectRow, accountName: string)}
+    {#if websitePendingProvisioning(p.provisioning)}
+      <span
+        class="{actionLinkClass} pointer-events-none cursor-default opacity-55"
+        role="status"
+        aria-label="Website not live yet"
+      >
+        {@render provisioningFieldDots(
+          'acct-id-loading-dots--icon text-muted-foreground/90',
+          'Website not live yet',
+        )}
+      </span>
+    {:else}
+      {@render accountWebsiteLink(p, accountName)}
+    {/if}
+  {/snippet}
+
   <div class="mx-auto w-full min-w-0 max-w-7xl">
     <div
       class="flex items-end justify-between gap-4 border-border border-b pb-6 md:items-center md:pb-8"
@@ -456,14 +711,24 @@ const accountMobileFieldLabelClass =
       <h1 class="m-0 min-w-0 font-display text-2xl font-semibold tracking-tight text-foreground lowercase md:text-3xl">
         projects
       </h1>
-      <Button
-        type="button"
-        variant="outline"
-        class="shrink-0 rounded-sm border-foreground/40"
-        onclick={addProject}
-      >
-        Add
-      </Button>
+      <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          class="rounded-sm border-foreground/40"
+          onclick={addDefaultRandomProject}
+        >
+          Add default
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          class="rounded-sm border-foreground/40"
+          onclick={addProject}
+        >
+          Add
+        </Button>
+      </div>
     </div>
 
     <div class="mt-8 md:mt-10">
@@ -655,28 +920,40 @@ const accountMobileFieldLabelClass =
                         </span>{p.accountNames.length}
                       </span>
                       <span class="min-w-0 md:text-right">
-                        <span class="flex w-full min-w-0 max-w-full flex-col md:items-end">
-                          <span
-                            class="block w-full font-medium tabular-nums text-foreground break-words md:text-right"
-                          >
-                            {formatCostAmount(projectCostSumByKind(p, 'current'))}
+                        {#if costsPendingProvisioning(p.provisioning)}
+                          <span class="flex w-full min-w-0 max-w-full flex-col items-end gap-1.5 py-0.5">
+                            {@render provisioningFieldDots(
+                              'text-muted-foreground/70',
+                              'Spend not available while billing and accounts are set up',
+                            )}
                           </span>
-                          <span
-                            class="mt-0.5 flex w-full max-w-full items-baseline font-mono text-[0.75rem] font-normal leading-snug text-muted-foreground tabular-nums [overflow-wrap:anywhere] md:justify-end"
-                          >
-                            <span class="inline-flex max-w-full items-baseline gap-0">
-                              {formatCostAmount(projectCostSumByKind(p, 'lastMonth'))}
-                              <span
-                                class="mx-px shrink-0 text-muted-foreground/50"
-                                aria-hidden="true"
-                              >·</span>
-                              {formatCostAmount(projectCostSumByKind(p, 'predicted'))}
+                          <span class="sr-only">
+                            Cost totals loading; billing and account setup in progress.
+                          </span>
+                        {:else}
+                          <span class="flex w-full min-w-0 max-w-full flex-col md:items-end">
+                            <span
+                              class="block w-full font-medium tabular-nums text-foreground break-words md:text-right"
+                            >
+                              {formatCostAmount(projectCostSumByKind(p, 'current'))}
+                            </span>
+                            <span
+                              class="mt-0.5 flex w-full max-w-full items-baseline font-mono text-[0.75rem] font-normal leading-snug text-muted-foreground tabular-nums [overflow-wrap:anywhere] md:justify-end"
+                            >
+                              <span class="inline-flex max-w-full items-baseline gap-0">
+                                {formatCostAmount(projectCostSumByKind(p, 'lastMonth'))}
+                                <span
+                                  class="mx-px shrink-0 text-muted-foreground/50"
+                                  aria-hidden="true"
+                                >·</span>
+                                {formatCostAmount(projectCostSumByKind(p, 'predicted'))}
+                              </span>
                             </span>
                           </span>
-                        </span>
-                        <span class="sr-only">
-                          Current total, then last month and predicted.
-                        </span>
+                          <span class="sr-only">
+                            Current total, then last month and predicted.
+                          </span>
+                        {/if}
                       </span>
                       <span class="min-w-0 text-muted-foreground md:truncate md:text-left">
                         <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
@@ -795,48 +1072,87 @@ const accountMobileFieldLabelClass =
                           </svg>
                         </button>
                       {:else}
-                        <a
-                          href={p.websiteUrl.trim() || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="{actionLinkClass} {!p.websiteUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                          aria-label={`Open website for ${p.name}`}
-                          aria-disabled={!p.websiteUrl.trim()}
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            if (!p.websiteUrl.trim()) e.preventDefault();
-                          }}
-                        >
-                          W
-                        </a>
-                        <a
-                          href={p.githubUrl.trim() || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="{actionLinkClass} {!p.githubUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                          aria-label={`Open GitHub for ${p.name}`}
-                          aria-disabled={!p.githubUrl.trim()}
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            if (!p.githubUrl.trim()) e.preventDefault();
-                          }}
-                        >
-                          G
-                        </a>
-                        <a
-                          href={p.awsSignInUrl.trim() || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="{actionLinkClass} {!p.awsSignInUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                          aria-label={`Open assign URL for ${p.name}`}
-                          aria-disabled={!p.awsSignInUrl.trim()}
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            if (!p.awsSignInUrl.trim()) e.preventDefault();
-                          }}
-                        >
-                          A
-                        </a>
+                        {#if websitePendingProvisioning(p.provisioning)}
+                          <span
+                            class="{actionLinkClass} pointer-events-none cursor-default opacity-55"
+                            role="status"
+                            aria-label="Website not live yet"
+                          >
+                            {@render provisioningFieldDots(
+                              'acct-id-loading-dots--icon text-muted-foreground/90',
+                              'Website not live yet',
+                            )}
+                          </span>
+                        {:else}
+                          <a
+                            href={p.websiteUrl.trim() || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="{actionLinkClass} {!p.websiteUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
+                            aria-label={`Open website for ${p.name}`}
+                            aria-disabled={!p.websiteUrl.trim()}
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              if (!p.websiteUrl.trim()) e.preventDefault();
+                            }}
+                          >
+                            W
+                          </a>
+                        {/if}
+                        {#if githubIntegrationPending(p.provisioning)}
+                          <span
+                            class="{actionLinkClass} pointer-events-none cursor-default opacity-55"
+                            role="status"
+                            aria-label="GitHub integration not ready"
+                          >
+                            {@render provisioningFieldDots(
+                              'acct-id-loading-dots--icon text-muted-foreground/90',
+                              'GitHub integration not ready',
+                            )}
+                          </span>
+                        {:else}
+                          <a
+                            href={p.githubUrl.trim() || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="{actionLinkClass} {!p.githubUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
+                            aria-label={`Open GitHub for ${p.name}`}
+                            aria-disabled={!p.githubUrl.trim()}
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              if (!p.githubUrl.trim()) e.preventDefault();
+                            }}
+                          >
+                            G
+                          </a>
+                        {/if}
+                        {#if awsAssignPendingProvisioning(p.provisioning)}
+                          <span
+                            class="{actionLinkClass} pointer-events-none cursor-default opacity-55"
+                            role="status"
+                            aria-label="AWS access not ready for these accounts"
+                          >
+                            {@render provisioningFieldDots(
+                              'acct-id-loading-dots--icon text-muted-foreground/90',
+                              'AWS access not ready for these accounts',
+                            )}
+                          </span>
+                        {:else}
+                          <a
+                            href={p.awsSignInUrl.trim() || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="{actionLinkClass} {!p.awsSignInUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
+                            aria-label={`Open assign URL for ${p.name}`}
+                            aria-disabled={!p.awsSignInUrl.trim()}
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              if (!p.awsSignInUrl.trim()) e.preventDefault();
+                            }}
+                          >
+                            A
+                          </a>
+                        {/if}
                         <button
                           type="button"
                           class="{actionLinkClass} text-muted-foreground hover:text-foreground"
@@ -865,6 +1181,24 @@ const accountMobileFieldLabelClass =
                       {/if}
                     </div>
                   </div>
+                  {#if p.provisioning}
+                    <div
+                      class="relative h-[3px] w-full shrink-0 bg-border/80"
+                      role="progressbar"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      aria-valuenow={Math.round(p.provisioning.progress)}
+                      aria-label="Provisioning progress: billing, AWS accounts, and GitHub"
+                    >
+                      <div
+                        class="absolute left-0 top-0 h-full origin-left bg-gradient-to-r from-emerald-600/85 via-emerald-400/75 to-emerald-300/90 shadow-[0_0_12px_rgba(52,211,153,0.35)] transition-[width] duration-100 ease-linear"
+                        style="width: {p.provisioning.progress}%"
+                      ></div>
+                    </div>
+                    <span class="sr-only" aria-live="polite">
+                      Provisioning {Math.round(p.provisioning.progress)} percent complete.
+                    </span>
+                  {/if}
                 </Accordion.Header>
                 <Accordion.Content class="min-w-0 max-w-full overflow-x-hidden overflow-y-visible bg-muted/10 px-4 pb-5 pt-2">
                   {#if p.isDraft}
@@ -1017,31 +1351,46 @@ const accountMobileFieldLabelClass =
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <span class={accountMobileFieldLabelClass}>Cost</span>
-                                {@render accountCostStack(curCell, lastCell, predCell)}
+                                {#if costsPendingProvisioning(p.provisioning)}
+                                  <div class="flex min-h-9 items-end justify-end pb-1">
+                                    {@render provisioningFieldDots(
+                                      'text-muted-foreground/70',
+                                      'Per-account cost data not ready yet',
+                                    )}
+                                  </div>
+                                {:else}
+                                  {@render accountCostStack(curCell, lastCell, predCell)}
+                                {/if}
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <span class={accountMobileFieldLabelClass}>Account id</span>
-                                <Input
-                                  type="text"
-                                  placeholder="—"
-                                  value={p.accountHints?.[idx] ?? ''}
-                                  oninput={(e) => {
-                                    const id = p.id;
-                                    const i = idx;
-                                    const v = e.currentTarget.value;
-                                    projects = projects.map((x) => {
-                                      if (x.id !== id) return x;
-                                      const hints = [...(x.accountHints ?? [])];
-                                      while (hints.length <= i) hints.push('');
-                                      hints[i] = v;
-                                      return { ...x, accountHints: hints };
-                                    });
-                                  }}
-                                  class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
-                                />
+                                {#if accountIdsPendingProvisioning(p.provisioning)}
+                                  <div class="flex h-9 w-full items-center justify-end">
+                                    {@render accountIdDotsPlaceholder()}
+                                  </div>
+                                {:else}
+                                  <Input
+                                    type="text"
+                                    placeholder="—"
+                                    value={p.accountHints?.[idx] ?? ''}
+                                    oninput={(e) => {
+                                      const id = p.id;
+                                      const i = idx;
+                                      const v = e.currentTarget.value;
+                                      projects = projects.map((x) => {
+                                        if (x.id !== id) return x;
+                                        const hints = [...(x.accountHints ?? [])];
+                                        while (hints.length <= i) hints.push('');
+                                        hints[i] = v;
+                                        return { ...x, accountHints: hints };
+                                      });
+                                    }}
+                                    class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
+                                  />
+                                {/if}
                               </div>
                               <div class="flex items-center gap-2">
-                                {@render accountWebsiteLink(p, name)}
+                                {@render accountWebsiteLinkOrLoading(p, name)}
                               </div>
                             </div>
                           {/each}
@@ -1109,30 +1458,45 @@ const accountMobileFieldLabelClass =
                                     </span>
                                   </td>
                                   <td class="min-w-0 px-3.5 py-2 align-middle text-right tabular-nums">
-                                    {@render accountCostStack(curCell, lastCell, predCell)}
+                                    {#if costsPendingProvisioning(p.provisioning)}
+                                      <div class="flex min-h-9 items-center justify-end">
+                                        {@render provisioningFieldDots(
+                                          'text-muted-foreground/70',
+                                          'Per-account cost data not ready yet',
+                                        )}
+                                      </div>
+                                    {:else}
+                                      {@render accountCostStack(curCell, lastCell, predCell)}
+                                    {/if}
                                   </td>
                                   <td class="min-w-0 px-3 py-2 pr-1.5 align-middle text-right">
-                                    <Input
-                                      type="text"
-                                      placeholder="—"
-                                      value={p.accountHints?.[idx] ?? ''}
-                                      oninput={(e) => {
-                                        const id = p.id;
-                                        const i = idx;
-                                        const v = e.currentTarget.value;
-                                        projects = projects.map((x) => {
-                                          if (x.id !== id) return x;
-                                          const hints = [...(x.accountHints ?? [])];
-                                          while (hints.length <= i) hints.push('');
-                                          hints[i] = v;
-                                          return { ...x, accountHints: hints };
-                                        });
-                                      }}
-                                      class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-right font-mono text-[0.8rem] tabular-nums"
-                                    />
+                                    {#if accountIdsPendingProvisioning(p.provisioning)}
+                                      <div class="flex h-9 items-center justify-end">
+                                        {@render accountIdDotsPlaceholder()}
+                                      </div>
+                                    {:else}
+                                      <Input
+                                        type="text"
+                                        placeholder="—"
+                                        value={p.accountHints?.[idx] ?? ''}
+                                        oninput={(e) => {
+                                          const id = p.id;
+                                          const i = idx;
+                                          const v = e.currentTarget.value;
+                                          projects = projects.map((x) => {
+                                            if (x.id !== id) return x;
+                                            const hints = [...(x.accountHints ?? [])];
+                                            while (hints.length <= i) hints.push('');
+                                            hints[i] = v;
+                                            return { ...x, accountHints: hints };
+                                          });
+                                        }}
+                                        class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-right font-mono text-[0.8rem] tabular-nums"
+                                      />
+                                    {/if}
                                   </td>
                                   <td class="w-0 whitespace-nowrap py-2 pl-1 pr-2 align-middle text-left">
-                                    {@render accountWebsiteLink(p, name)}
+                                    {@render accountWebsiteLinkOrLoading(p, name)}
                                   </td>
                                 </tr>
                               {/each}
@@ -1184,41 +1548,65 @@ const accountMobileFieldLabelClass =
                         </div>
                         <div class={tripleFieldGridClass}>
                           <div class="flex min-w-0 flex-col gap-2">
-                            <Label for={`${p.id}-edit-website`} class="text-muted-foreground text-xs font-normal">
-                              Website URL
-                            </Label>
-                            <Input
-                              id={`${p.id}-edit-website`}
-                              type="url"
-                              placeholder="https://…"
-                              value={p.websiteUrl}
-                              oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
-                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                            />
+                            <span class="text-muted-foreground text-xs font-normal">Website URL</span>
+                            {#if websitePendingProvisioning(p.provisioning)}
+                              <div class="flex h-9 items-center">
+                                {@render provisioningFieldDots(
+                                  'text-muted-foreground/75',
+                                  'Website not live yet',
+                                )}
+                              </div>
+                            {:else}
+                              <Label for={`${p.id}-edit-website`} class="sr-only">Website URL</Label>
+                              <Input
+                                id={`${p.id}-edit-website`}
+                                type="url"
+                                placeholder="https://…"
+                                value={p.websiteUrl}
+                                oninput={(e) => patchProject(p.id, { websiteUrl: e.currentTarget.value })}
+                                class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                              />
+                            {/if}
                           </div>
                           <div class="flex min-w-0 flex-col gap-2">
-                            <Label for={`${p.id}-edit-github`} class="text-muted-foreground text-xs font-normal">
-                              GitHub URL
-                            </Label>
-                            <Input
-                              id={`${p.id}-edit-github`}
-                              type="url"
-                              value={p.githubUrl}
-                              oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
-                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                            />
+                            <span class="text-muted-foreground text-xs font-normal">GitHub URL</span>
+                            {#if githubIntegrationPending(p.provisioning)}
+                              <div class="flex h-9 items-center">
+                                {@render provisioningFieldDots(
+                                  'text-muted-foreground/75',
+                                  'GitHub integration not ready',
+                                )}
+                              </div>
+                            {:else}
+                              <Label for={`${p.id}-edit-github`} class="sr-only">GitHub URL</Label>
+                              <Input
+                                id={`${p.id}-edit-github`}
+                                type="url"
+                                value={p.githubUrl}
+                                oninput={(e) => patchProject(p.id, { githubUrl: e.currentTarget.value })}
+                                class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                              />
+                            {/if}
                           </div>
                           <div class="flex min-w-0 flex-col gap-2">
-                            <Label for={`${p.id}-edit-assign`} class="text-muted-foreground text-xs font-normal">
-                              Assign URL
-                            </Label>
-                            <Input
-                              id={`${p.id}-edit-assign`}
-                              type="url"
-                              value={p.awsSignInUrl}
-                              oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
-                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                            />
+                            <span class="text-muted-foreground text-xs font-normal">Assign URL</span>
+                            {#if awsAssignPendingProvisioning(p.provisioning)}
+                              <div class="flex h-9 items-center">
+                                {@render provisioningFieldDots(
+                                  'text-muted-foreground/75',
+                                  'AWS account access not ready yet',
+                                )}
+                              </div>
+                            {:else}
+                              <Label for={`${p.id}-edit-assign`} class="sr-only">Assign URL</Label>
+                              <Input
+                                id={`${p.id}-edit-assign`}
+                                type="url"
+                                value={p.awsSignInUrl}
+                                oninput={(e) => patchProject(p.id, { awsSignInUrl: e.currentTarget.value })}
+                                class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                              />
+                            {/if}
                           </div>
                         </div>
                       </div>
@@ -1243,20 +1631,35 @@ const accountMobileFieldLabelClass =
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <span class={accountMobileFieldLabelClass}>Cost</span>
-                                {@render accountCostStack(curCell, lastCell, predCell)}
+                                {#if costsPendingProvisioning(p.provisioning)}
+                                  <div class="flex min-h-9 items-end justify-end pb-1">
+                                    {@render provisioningFieldDots(
+                                      'text-muted-foreground/70',
+                                      'Per-account cost data not ready yet',
+                                    )}
+                                  </div>
+                                {:else}
+                                  {@render accountCostStack(curCell, lastCell, predCell)}
+                                {/if}
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <span class={accountMobileFieldLabelClass}>Account id</span>
-                                <span class="font-mono text-[0.8rem] text-muted-foreground tabular-nums break-all">
-                                  {#if (accountIdHint ?? '').trim()}
-                                    {accountIdHint}
-                                  {:else}
-                                    —
-                                  {/if}
-                                </span>
+                                {#if accountIdsPendingProvisioning(p.provisioning)}
+                                  <div class="flex min-h-9 items-center justify-end">
+                                    {@render accountIdDotsPlaceholder()}
+                                  </div>
+                                {:else}
+                                  <span class="font-mono text-[0.8rem] text-muted-foreground tabular-nums break-all">
+                                    {#if (accountIdHint ?? '').trim()}
+                                      {accountIdHint}
+                                    {:else}
+                                      —
+                                    {/if}
+                                  </span>
+                                {/if}
                               </div>
                               <div class="flex items-center gap-2">
-                                {@render accountWebsiteLink(p, name)}
+                                {@render accountWebsiteLinkOrLoading(p, name)}
                               </div>
                             </div>
                           {/each}
@@ -1309,17 +1712,30 @@ const accountMobileFieldLabelClass =
                                     </span>
                                   </td>
                                   <td class="min-w-0 px-3.5 py-2 align-middle text-right tabular-nums">
-                                    {@render accountCostStack(curCell, lastCell, predCell)}
+                                    {#if costsPendingProvisioning(p.provisioning)}
+                                      <div class="flex min-h-9 items-center justify-end">
+                                        {@render provisioningFieldDots(
+                                          'text-muted-foreground/70',
+                                          'Per-account cost data not ready yet',
+                                        )}
+                                      </div>
+                                    {:else}
+                                      {@render accountCostStack(curCell, lastCell, predCell)}
+                                    {/if}
                                   </td>
                                   <td class="min-w-0 break-all px-3 py-2 pr-1.5 text-right font-mono text-[0.8rem] text-muted-foreground tabular-nums">
-                                    {#if (accountIdHint ?? '').trim()}
+                                    {#if accountIdsPendingProvisioning(p.provisioning)}
+                                      <div class="flex min-h-9 items-center justify-end">
+                                        {@render accountIdDotsPlaceholder()}
+                                      </div>
+                                    {:else if (accountIdHint ?? '').trim()}
                                       {accountIdHint}
                                     {:else}
                                       —
                                     {/if}
                                   </td>
                                   <td class="w-0 whitespace-nowrap py-2 pl-1 pr-2 align-middle text-left">
-                                    {@render accountWebsiteLink(p, name)}
+                                    {@render accountWebsiteLinkOrLoading(p, name)}
                                   </td>
                                 </tr>
                               {/each}
@@ -1356,7 +1772,14 @@ const accountMobileFieldLabelClass =
                         <div class={tripleFieldGridClass}>
                           <div class="flex min-w-0 flex-col gap-1">
                             <span class="text-muted-foreground text-xs font-normal">Website URL</span>
-                            {#if p.websiteUrl.trim()}
+                            {#if websitePendingProvisioning(p.provisioning)}
+                              <div class="flex min-h-[1.35rem] items-center">
+                                {@render provisioningFieldDots(
+                                  'text-muted-foreground/75',
+                                  'Website not live yet',
+                                )}
+                              </div>
+                            {:else if p.websiteUrl.trim()}
                               <a
                                 href={p.websiteUrl}
                                 target="_blank"
@@ -1371,7 +1794,14 @@ const accountMobileFieldLabelClass =
                           </div>
                           <div class="flex min-w-0 flex-col gap-1">
                             <span class="text-muted-foreground text-xs font-normal">GitHub URL</span>
-                            {#if p.githubUrl.trim()}
+                            {#if githubIntegrationPending(p.provisioning)}
+                              <div class="flex min-h-[1.35rem] items-center">
+                                {@render provisioningFieldDots(
+                                  'text-muted-foreground/75',
+                                  'GitHub integration not ready',
+                                )}
+                              </div>
+                            {:else if p.githubUrl.trim()}
                               <a
                                 href={p.githubUrl}
                                 target="_blank"
@@ -1386,7 +1816,14 @@ const accountMobileFieldLabelClass =
                           </div>
                           <div class="flex min-w-0 flex-col gap-1">
                             <span class="text-muted-foreground text-xs font-normal">Assign URL</span>
-                            {#if p.awsSignInUrl.trim()}
+                            {#if awsAssignPendingProvisioning(p.provisioning)}
+                              <div class="flex min-h-[1.35rem] items-center">
+                                {@render provisioningFieldDots(
+                                  'text-muted-foreground/75',
+                                  'AWS account access not ready yet',
+                                )}
+                              </div>
+                            {:else if p.awsSignInUrl.trim()}
                               <a
                                 href={p.awsSignInUrl}
                                 target="_blank"
@@ -1422,20 +1859,35 @@ const accountMobileFieldLabelClass =
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <span class={accountMobileFieldLabelClass}>Cost</span>
-                                {@render accountCostStack(curCell, lastCell, predCell)}
+                                {#if costsPendingProvisioning(p.provisioning)}
+                                  <div class="flex min-h-9 items-end justify-end pb-1">
+                                    {@render provisioningFieldDots(
+                                      'text-muted-foreground/70',
+                                      'Per-account cost data not ready yet',
+                                    )}
+                                  </div>
+                                {:else}
+                                  {@render accountCostStack(curCell, lastCell, predCell)}
+                                {/if}
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <span class={accountMobileFieldLabelClass}>Account id</span>
-                                <span class="font-mono text-[0.8rem] text-muted-foreground tabular-nums break-all">
-                                  {#if (accountIdHint ?? '').trim()}
-                                    {accountIdHint}
-                                  {:else}
-                                    —
-                                  {/if}
-                                </span>
+                                {#if accountIdsPendingProvisioning(p.provisioning)}
+                                  <div class="flex min-h-9 items-center justify-end">
+                                    {@render accountIdDotsPlaceholder()}
+                                  </div>
+                                {:else}
+                                  <span class="font-mono text-[0.8rem] text-muted-foreground tabular-nums break-all">
+                                    {#if (accountIdHint ?? '').trim()}
+                                      {accountIdHint}
+                                    {:else}
+                                      —
+                                    {/if}
+                                  </span>
+                                {/if}
                               </div>
                               <div class="flex items-center gap-2">
-                                {@render accountWebsiteLink(p, name)}
+                                {@render accountWebsiteLinkOrLoading(p, name)}
                               </div>
                             </div>
                           {/each}
@@ -1488,17 +1940,30 @@ const accountMobileFieldLabelClass =
                                     </span>
                                   </td>
                                   <td class="min-w-0 px-3.5 py-2 align-middle text-right tabular-nums">
-                                    {@render accountCostStack(curCell, lastCell, predCell)}
+                                    {#if costsPendingProvisioning(p.provisioning)}
+                                      <div class="flex min-h-9 items-center justify-end">
+                                        {@render provisioningFieldDots(
+                                          'text-muted-foreground/70',
+                                          'Per-account cost data not ready yet',
+                                        )}
+                                      </div>
+                                    {:else}
+                                      {@render accountCostStack(curCell, lastCell, predCell)}
+                                    {/if}
                                   </td>
                                   <td class="min-w-0 break-all px-3 py-2 pr-1.5 text-right font-mono text-[0.8rem] text-muted-foreground tabular-nums">
-                                    {#if (accountIdHint ?? '').trim()}
+                                    {#if accountIdsPendingProvisioning(p.provisioning)}
+                                      <div class="flex min-h-9 items-center justify-end">
+                                        {@render accountIdDotsPlaceholder()}
+                                      </div>
+                                    {:else if (accountIdHint ?? '').trim()}
                                       {accountIdHint}
                                     {:else}
                                       —
                                     {/if}
                                   </td>
                                   <td class="w-0 whitespace-nowrap py-2 pl-1 pr-2 align-middle text-left">
-                                    {@render accountWebsiteLink(p, name)}
+                                    {@render accountWebsiteLinkOrLoading(p, name)}
                                   </td>
                                 </tr>
                               {/each}
@@ -1544,3 +2009,52 @@ const accountMobileFieldLabelClass =
     </button>
   {/if}
 </main>
+
+<style>
+  @keyframes acct-id-dot-flicker {
+    0%,
+    100% {
+      opacity: 0.2;
+      transform: scale(0.92);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .acct-id-loading-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.28rem;
+  }
+
+  .acct-id-loading-dots span {
+    display: block;
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: acct-id-dot-flicker 1.05s ease-in-out infinite;
+  }
+
+  .acct-id-loading-dots span:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+
+  .acct-id-loading-dots span:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+
+  /** Fits inside W / G / A action squares */
+  .acct-id-loading-dots--icon {
+    gap: 0.12rem;
+    justify-content: center;
+  }
+
+  .acct-id-loading-dots--icon span {
+    width: 0.22rem;
+    height: 0.22rem;
+  }
+</style>
