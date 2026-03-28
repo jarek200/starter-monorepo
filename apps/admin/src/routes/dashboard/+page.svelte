@@ -7,6 +7,8 @@ import { Label } from '$lib/components/ui/label';
 type ProjectRow = {
   id: string;
   name: string;
+  /** Slack channel or workspace label shown under the name in the table */
+  slackName: string;
   slug: string;
   accountNames: string[];
   createdLabel: string;
@@ -19,6 +21,8 @@ type ProjectRow = {
   awsSignInUrl: string;
   /** Placeholder account ids for layout only */
   accountHints?: string[];
+  /** Newly added row: show Save/Cancel until saved */
+  isDraft?: boolean;
 };
 
 function slugify(s: string) {
@@ -52,6 +56,7 @@ let projects = $state<ProjectRow[]>([
   {
     id: 'seed-acme',
     name: 'Acme platform',
+    slackName: '#acme-platform',
     slug: 'acme-platform',
     accountNames: ['acme-int', 'acme-stage', 'acme-prod'],
     createdLabel: 'Mar 20, 2026',
@@ -66,6 +71,7 @@ let projects = $state<ProjectRow[]>([
   {
     id: 'seed-billing',
     name: 'Billing API',
+    slackName: '#billing-api',
     slug: 'billing-api',
     accountNames: ['billing-dev', 'billing-stage', 'billing-prod'],
     createdLabel: 'Mar 15, 2026',
@@ -83,6 +89,10 @@ const DEFAULT_AWS_SIGNIN_URL = 'https://signin.aws.amazon.com/console';
 
 const actionLinkClass =
   'inline-flex size-8 shrink-0 items-center justify-center border border-border text-foreground text-xs font-semibold transition-colors hover:bg-muted/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+
+/** Hover label below draft Save / Cancel icon buttons (below avoids clipping) */
+const draftIconTipClass =
+  'pointer-events-none absolute top-full left-1/2 z-[60] mt-1 -translate-x-1/2 whitespace-nowrap rounded-sm border border-border bg-popover px-1.5 py-px text-[0.65rem] font-medium text-popover-foreground opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100';
 
 /** Which accordion panels are open (bits-ui `type="multiple"`). */
 let accordionValue = $state<string[]>([]);
@@ -102,6 +112,7 @@ function addProject() {
     {
       id,
       name: 'New project',
+      slackName: '',
       slug: placeholderSlug,
       accountNames: ['int', 'stage', 'prod'],
       createdLabel: shortDate(new Date()),
@@ -111,15 +122,11 @@ function addProject() {
       websiteUrl: '',
       githubUrl: DEFAULT_GITHUB_URL,
       awsSignInUrl: DEFAULT_AWS_SIGNIN_URL,
+      isDraft: true,
     },
     ...projects,
   ];
   accordionValue = [id];
-}
-
-function deleteProject(id: string) {
-  projects = projects.filter((p) => p.id !== id);
-  accordionValue = accordionValue.filter((v) => v !== id);
 }
 
 function setAccountCount(projectId: string, count: number) {
@@ -141,6 +148,15 @@ function onProjectAccountCountInput(projectId: string, e: Event & { currentTarge
 
 function patchProject(id: string, patch: Partial<ProjectRow>) {
   projects = projects.map((p) => (p.id === id ? { ...p, ...patch } : p));
+}
+
+function saveDraftProject(id: string) {
+  patchProject(id, { isDraft: false });
+}
+
+function discardDraftProject(id: string) {
+  projects = projects.filter((p) => p.id !== id);
+  accordionValue = accordionValue.filter((v) => v !== id);
 }
 
 type SortKey = 'name' | 'template' | 'created' | 'accounts';
@@ -194,13 +210,13 @@ let displayedProjects = $derived.by(() => {
 const sortHeadingBtnClass =
   'inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm font-medium tracking-wide uppercase hover:bg-muted/25 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-/** Chevron first, then name | template | created | account count (inside accordion trigger) */
+/** Chevron first, then name+slack | template | created | account count (inside accordion trigger) */
 const summaryTriggerGridClass =
-  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-center gap-x-3 gap-y-1 py-3 pr-2 pl-4 text-left sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,10rem)_10.5rem_3.5rem] sm:gap-x-4';
+  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-center gap-x-3 gap-y-1 py-3 pr-2 pl-4 text-left sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] sm:gap-x-4';
 
 /** Header row: same grid columns as trigger + space for actions */
 const headerLeftGridClass =
-  'grid min-w-0 flex-1 grid-cols-1 px-4 py-3 text-left text-muted-foreground text-xs sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,10rem)_10.5rem_3.5rem] sm:gap-x-4';
+  'grid min-w-0 flex-1 grid-cols-1 px-4 py-3 text-left text-muted-foreground text-xs sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] sm:gap-x-4';
 </script>
 
 <svelte:head>
@@ -210,7 +226,7 @@ const headerLeftGridClass =
 <main
   class="min-h-dvh min-w-0 max-w-full overflow-x-hidden px-6 pt-28 pb-16 md:px-10 md:pt-32 md:pb-20 lg:px-14 lg:pt-36"
 >
-  <div class="mx-auto w-full min-w-0 max-w-3xl">
+  <div class="mx-auto w-full min-w-0 max-w-7xl">
     <div
       class="flex flex-col gap-6 border-border border-b pb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-4"
     >
@@ -372,7 +388,17 @@ const headerLeftGridClass =
                       >
                         <path d="m6 9 6 6 6-6" />
                       </svg>
-                      <span class="min-w-0 font-medium text-foreground">{p.name}</span>
+                      <span class="min-w-0 w-full max-w-full">
+                        <span class="block w-full font-medium text-foreground break-words">{p.name}</span>
+                        {#if p.slackName.trim()}
+                          <span
+                            class="mt-0.5 block w-full text-[0.75rem] font-normal leading-snug text-muted-foreground break-words"
+                            title="Slack"
+                          >
+                            {p.slackName}
+                          </span>
+                        {/if}
+                      </span>
                       <span
                         class="min-w-0 text-muted-foreground sm:truncate sm:text-left"
                         title={p.templateLabel}
@@ -395,65 +421,107 @@ const headerLeftGridClass =
                       </span>
                     </Accordion.Trigger>
                     <div
-                      class="flex items-center justify-end gap-2 py-3 pr-4 pl-2 sm:min-w-[8rem] sm:px-3"
+                      class="flex flex-wrap items-center justify-end gap-2 overflow-visible py-3 pr-4 pl-2 sm:min-w-[8rem] sm:px-3"
                     >
-                      <a
-                        href={p.websiteUrl.trim() || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="{actionLinkClass} {!p.websiteUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                        title="Website"
-                        aria-label={`Open website for ${p.name}`}
-                        aria-disabled={!p.websiteUrl.trim()}
-                        onclick={(e) => {
-                          e.stopPropagation();
-                          if (!p.websiteUrl.trim()) e.preventDefault();
-                        }}
-                      >
-                        W
-                      </a>
-                      <a
-                        href={p.githubUrl.trim() || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="{actionLinkClass} {!p.githubUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                        title="GitHub"
-                        aria-label={`Open GitHub for ${p.name}`}
-                        aria-disabled={!p.githubUrl.trim()}
-                        onclick={(e) => {
-                          e.stopPropagation();
-                          if (!p.githubUrl.trim()) e.preventDefault();
-                        }}
-                      >
-                        G
-                      </a>
-                      <a
-                        href={p.awsSignInUrl.trim() || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="{actionLinkClass} {!p.awsSignInUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
-                        title="AWS sign-in"
-                        aria-label={`Open AWS sign-in for ${p.name}`}
-                        aria-disabled={!p.awsSignInUrl.trim()}
-                        onclick={(e) => {
-                          e.stopPropagation();
-                          if (!p.awsSignInUrl.trim()) e.preventDefault();
-                        }}
-                      >
-                        A
-                      </a>
-                      <button
-                        type="button"
-                        class="{actionLinkClass} text-[0.65rem] hover:border-destructive/60 hover:text-destructive"
-                        title="Remove project"
-                        aria-label={`Remove ${p.name}`}
-                        onclick={(e) => {
-                          e.stopPropagation();
-                          deleteProject(p.id);
-                        }}
-                      >
-                        ×
-                      </button>
+                      {#if p.isDraft}
+                        <button
+                          type="button"
+                          class="group relative {actionLinkClass} text-muted-foreground hover:text-foreground"
+                          aria-label="Save"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            saveDraftProject(p.id);
+                          }}
+                        >
+                          <span class={draftIconTipClass} role="tooltip">Save</span>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="group relative {actionLinkClass} text-muted-foreground hover:border-destructive/60 hover:text-destructive"
+                          aria-label="Cancel"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            discardDraftProject(p.id);
+                          }}
+                        >
+                          <span class={draftIconTipClass} role="tooltip">Cancel</span>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                          </svg>
+                        </button>
+                      {:else}
+                        <a
+                          href={p.websiteUrl.trim() || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="{actionLinkClass} {!p.websiteUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
+                          title="Website"
+                          aria-label={`Open website for ${p.name}`}
+                          aria-disabled={!p.websiteUrl.trim()}
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            if (!p.websiteUrl.trim()) e.preventDefault();
+                          }}
+                        >
+                          W
+                        </a>
+                        <a
+                          href={p.githubUrl.trim() || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="{actionLinkClass} {!p.githubUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
+                          title="GitHub"
+                          aria-label={`Open GitHub for ${p.name}`}
+                          aria-disabled={!p.githubUrl.trim()}
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            if (!p.githubUrl.trim()) e.preventDefault();
+                          }}
+                        >
+                          G
+                        </a>
+                        <a
+                          href={p.awsSignInUrl.trim() || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="{actionLinkClass} {!p.awsSignInUrl.trim() ? 'pointer-events-none opacity-40' : ''}"
+                          title="AWS sign-in"
+                          aria-label={`Open AWS sign-in for ${p.name}`}
+                          aria-disabled={!p.awsSignInUrl.trim()}
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            if (!p.awsSignInUrl.trim()) e.preventDefault();
+                          }}
+                        >
+                          A
+                        </a>
+                      {/if}
                     </div>
                   </div>
                 </Accordion.Header>
@@ -469,7 +537,20 @@ const headerLeftGridClass =
                           type="text"
                           value={p.name}
                           oninput={(e) => patchProject(p.id, { name: e.currentTarget.value })}
-                          class="rounded-sm border-border bg-transparent"
+                          class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                        />
+                      </div>
+                      <div class="flex flex-col gap-2 sm:col-span-2">
+                        <Label for={`${p.id}-slack`} class="text-muted-foreground text-xs font-normal">
+                          Slack
+                        </Label>
+                        <Input
+                          id={`${p.id}-slack`}
+                          type="text"
+                          placeholder="e.g. #acme-platform"
+                          value={p.slackName}
+                          oninput={(e) => patchProject(p.id, { slackName: e.currentTarget.value })}
+                          class="w-full min-w-0 rounded-sm border-border bg-transparent"
                         />
                       </div>
                       <div class="flex flex-col gap-2">
@@ -572,17 +653,22 @@ const headerLeftGridClass =
                         Accounts
                       </span>
                       <table
-                        class="mt-3 w-full table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                        class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
                       >
+                        <colgroup>
+                          <col class="w-[36%]" />
+                          <col class="w-[44%]" />
+                          <col class="w-[20%]" />
+                        </colgroup>
                         <thead>
                           <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                            <th class="w-[28%] px-3 py-2 text-left font-medium tracking-wide uppercase">
+                            <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
                               Account name
                             </th>
                             <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
                               Email
                             </th>
-                            <th class="w-[26%] px-3 py-2 text-left font-medium tracking-wide uppercase">
+                            <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
                               Account id
                             </th>
                           </tr>
@@ -606,11 +692,11 @@ const headerLeftGridClass =
                                       return { ...x, accountNames };
                                     });
                                   }}
-                                  class="h-9 rounded-sm border-border bg-transparent text-sm"
+                                  class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-sm"
                                 />
                               </td>
                               <td class="min-w-0 px-3 py-2 align-middle">
-                                <span class="font-mono text-[0.75rem] text-foreground/90 break-all">
+                                <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
                                   {accountAliasEmail(name, p.slug, p.name)}
                                 </span>
                               </td>
@@ -631,7 +717,7 @@ const headerLeftGridClass =
                                       return { ...x, accountHints: hints };
                                     });
                                   }}
-                                  class="h-9 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
+                                  class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
                                 />
                               </td>
                             </tr>
