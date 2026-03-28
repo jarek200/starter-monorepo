@@ -8,6 +8,7 @@
     "dev": "pnpm sst dev --mode basic",
     "dev:tui": "pnpm sst dev",
     "dev:local": "pnpm --filter @sst-monorepo/web dev",
+    "away": "pnpm --filter @sst-monorepo/agent-core dev",
     "deploy:dev": "pnpm sst deploy --stage dev",
     "deploy:stage": "pnpm sst deploy --stage stage",
     "deploy:prod": "pnpm sst deploy --stage prod",

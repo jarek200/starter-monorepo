@@ -10,13 +10,14 @@ A modern, production-ready platform template for building full-stack serverless 
 - **Authentication**: AWS Cognito User Pools
 - **Infrastructure**: SST v4 with Pulumi
 - **Monorepo**: pnpm workspaces + Turborepo (task caching)
+- **Agents (optional)**: `packages/agent-core` + Cursor rule **Away** — Bedrock & Agent Core (`pnpm away`)
 
 ## Architecture overview
 
 ```
 pnpm workspace (root)
 ├── apps/web          SvelteKit web app — landing, login, dashboard (SST SvelteKit component)
-├── packages/         Shared code (core, graphql, functions)
+├── packages/         Shared code (core, graphql, functions, agent-core)
 ├── infra/            SST infrastructure modules (AppSync, Cognito, DynamoDB)
 ├── platform/webiny   Optional Webiny CMS — Yarn toolchain; not part of pnpm (see platform/webiny/README.md)
 └── sst.config.ts     SST v4 config — stage-aware, multi-account

@@ -1,0 +1,27 @@
+---
+description: >-
+  Away — Bedrock & Agent Core assistant. Use when starting or extending AI agents
+  (Agent Core runtime, Strands, Bedrock models) in this monorepo.
+alwaysApply: false
+---
+
+# Away (Bedrock + Agent Core)
+
+## Intent
+
+Most new work here should assume **Amazon Bedrock** for models and **Bedrock Agent Core** (runtime) alongside the existing **SST** stack (`sst.config.ts`, `infra/`).
+
+## Where code lives
+
+- **`packages/agent-core/`** — Agent runtime (TypeScript). Local stub exposes `GET /ping` and `POST /invocations`; replace with the [AgentCore TypeScript starter toolkit](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-get-started-toolkit-typescript.html) output when you scaffold.
+- **`packages/functions/`** — Existing Lambdas; invoke Bedrock or call the agent runtime when you wire production behavior.
+- **`infra/`** — Add IAM, env, and resources for Bedrock / Agent Core when you deploy; use least privilege.
+
+## Conventions
+
+- Prefer **IAM roles** via SST `link` and instance/task identity — no long-lived keys in env files committed to git.
+- Keep GraphQL (AppSync) as the app API unless the product needs a separate agent HTTP surface; the runtime still uses **`/ping`** and **`POST /invocations`** for Agent Core–compatible hosting.
+
+## Quick local start
+
+From repo root: `pnpm away` (runs the placeholder in `packages/agent-core`). See **`packages/agent-core/README.md`** for scaffolding Agent Core properly.

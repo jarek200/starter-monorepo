@@ -1,0 +1,18 @@
+{
+  "name": "@sst-monorepo/agent-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bedrock Agent Core runtime (stub + docs; scaffold with AWS starter toolkit)",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.20.0"
+}
