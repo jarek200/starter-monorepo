@@ -21,9 +21,58 @@ type ProjectRow = {
   awsSignInUrl: string;
   /** Placeholder account ids for layout only */
   accountHints?: string[];
+  /** Per-account AWS spend (USD strings); same length as accountNames; not edited in UI */
+  accountCostsLastMonth?: string[];
+  accountCostsCurrent?: string[];
+  accountCostsPredicted?: string[];
   /** Newly added row: show Save/Cancel until saved */
   isDraft?: boolean;
 };
+
+/** Plain USD amounts (grouping); `$` lives in column headers only */
+const costAmountFormatter = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 0,
+});
+
+function parseAccountCostInput(s: string): number {
+  const t = String(s ?? '')
+    .replace(/[$,]/g, '')
+    .trim();
+  if (t === '') return 0;
+  const n = Number.parseFloat(t);
+  return Number.isFinite(n) ? n : 0;
+}
+
+type CostKind = 'lastMonth' | 'current' | 'predicted';
+
+function projectCostSumByKind(p: ProjectRow, kind: CostKind): number {
+  const arr =
+    kind === 'lastMonth'
+      ? (p.accountCostsLastMonth ?? [])
+      : kind === 'current'
+        ? (p.accountCostsCurrent ?? [])
+        : (p.accountCostsPredicted ?? []);
+  let sum = 0;
+  for (let i = 0; i < p.accountNames.length; i++) {
+    sum += parseAccountCostInput(arr[i] ?? '');
+  }
+  return sum;
+}
+
+/** Sort / headline total: predicted month spend */
+function projectAccountsCostTotal(p: ProjectRow): number {
+  return projectCostSumByKind(p, 'predicted');
+}
+
+function formatCostAmount(n: number): string {
+  return costAmountFormatter.format(n);
+}
+
+function awsCostCell(raw: string | undefined): { show: boolean; amount: string } {
+  const n = parseAccountCostInput(raw ?? '');
+  const show = n !== 0 || String(raw ?? '').trim() !== '';
+  return { show, amount: formatCostAmount(n) };
+}
 
 function slugify(s: string) {
   return s
@@ -62,6 +111,9 @@ let projects = $state<ProjectRow[]>([
     detailBlurb:
       'Main product stack: SvelteKit, AppSync, DynamoDB, Cognito. Three linked AWS accounts for integration, staging, and production.',
     accountHints: ['111111111111', '222222222222', '333333333333'],
+    accountCostsLastMonth: ['290', '520', '2150'],
+    accountCostsCurrent: ['118', '205', '820'],
+    accountCostsPredicted: ['320', '580', '2400'],
     websiteUrl: 'https://acme-platform.example.com',
     githubUrl: 'https://github.com/acme-corp/acme-platform',
     awsSignInUrl: 'https://signin.aws.amazon.com/console',
@@ -75,6 +127,9 @@ let projects = $state<ProjectRow[]>([
     templateLabel: 'SST monorepo starter',
     detailBlurb: '',
     accountHints: ['444444444444', '555555555555', '666666666666'],
+    accountCostsLastMonth: ['195', '310', '820'],
+    accountCostsCurrent: ['72', '118', '305'],
+    accountCostsPredicted: ['210', '340', '890'],
     websiteUrl: 'https://billing-api.example.com',
     githubUrl: 'https://github.com/acme-corp/billing-api',
     awsSignInUrl: 'https://signin.aws.amazon.com/console',
@@ -109,6 +164,9 @@ function addProject() {
       templateLabel: '',
       detailBlurb: '',
       accountHints: ['', '', ''],
+      accountCostsLastMonth: ['', '', ''],
+      accountCostsCurrent: ['', '', ''],
+      accountCostsPredicted: ['', '', ''],
       websiteUrl: '',
       githubUrl: DEFAULT_GITHUB_URL,
       awsSignInUrl: DEFAULT_AWS_SIGNIN_URL,
@@ -127,7 +185,20 @@ function setAccountCount(projectId: string, count: number) {
     while (names.length < target) names.push('');
     let hints = (p.accountHints ?? []).slice(0, target);
     while (hints.length < target) hints.push('');
-    return { ...p, accountNames: names, accountHints: hints };
+    let lastM = (p.accountCostsLastMonth ?? []).slice(0, target);
+    while (lastM.length < target) lastM.push('');
+    let curC = (p.accountCostsCurrent ?? []).slice(0, target);
+    while (curC.length < target) curC.push('');
+    let pred = (p.accountCostsPredicted ?? []).slice(0, target);
+    while (pred.length < target) pred.push('');
+    return {
+      ...p,
+      accountNames: names,
+      accountHints: hints,
+      accountCostsLastMonth: lastM,
+      accountCostsCurrent: curC,
+      accountCostsPredicted: pred,
+    };
   });
 }
 
@@ -165,6 +236,9 @@ function cloneProjectRow(row: ProjectRow): ProjectRow {
     githubUrl: row.githubUrl,
     awsSignInUrl: row.awsSignInUrl,
     accountHints: row.accountHints ? [...row.accountHints] : undefined,
+    accountCostsLastMonth: row.accountCostsLastMonth ? [...row.accountCostsLastMonth] : undefined,
+    accountCostsCurrent: row.accountCostsCurrent ? [...row.accountCostsCurrent] : undefined,
+    accountCostsPredicted: row.accountCostsPredicted ? [...row.accountCostsPredicted] : undefined,
     isDraft: row.isDraft,
   };
 }
@@ -194,7 +268,7 @@ function cancelEditingProject() {
   editSnapshot = null;
 }
 
-type SortKey = 'name' | 'template' | 'created' | 'accounts';
+type SortKey = 'name' | 'cost' | 'template' | 'created' | 'accounts';
 
 let sortKey = $state<SortKey | null>(null);
 let sortDir = $state<'asc' | 'desc'>('asc');
@@ -259,6 +333,9 @@ let displayedProjects = $derived.by(() => {
       case 'name':
         c = a.name.localeCompare(b.name);
         break;
+      case 'cost':
+        c = projectAccountsCostTotal(a) - projectAccountsCostTotal(b);
+        break;
       case 'template':
         c = a.templateLabel.localeCompare(b.templateLabel);
         break;
@@ -279,13 +356,13 @@ let displayedProjects = $derived.by(() => {
 const sortHeadingBtnClass =
   'inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm font-medium tracking-wide uppercase hover:bg-muted/25 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-/** Chevron first, then name+slug | template | created | account count (inside accordion trigger) */
+/** Chevron, then name | accounts | cost | template | created (inside accordion trigger) */
 const summaryTriggerGridClass =
-  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-center gap-x-3 gap-y-1 py-3 pr-2 pl-4 text-left md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] md:gap-x-4';
+  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-center gap-x-4 gap-y-1 py-3 pr-2 pl-4 text-left md:grid-cols-[2rem_minmax(0,1fr)_3.5rem_minmax(9rem,12rem)_minmax(0,12rem)_10.5rem] md:gap-x-8';
 
 /** Header row: same grid columns as trigger + space for actions */
 const headerLeftGridClass =
-  'grid min-w-0 flex-1 grid-cols-1 px-4 py-3 text-left text-muted-foreground text-xs md:grid md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,14rem)_10.5rem_3.5rem] md:gap-x-4';
+  'grid min-w-0 flex-1 grid-cols-1 px-4 py-3 text-left text-muted-foreground text-xs md:grid md:grid-cols-[2rem_minmax(0,1fr)_3.5rem_minmax(9rem,12rem)_minmax(0,12rem)_10.5rem] md:gap-x-8';
 
 /** Three fields in a row: 1 col, 2 from sm, 3 from lg (name block or URL block) */
 const tripleFieldGridClass =
@@ -357,6 +434,56 @@ const tripleFieldGridClass =
                   </span>
                 </button>
               </div>
+              <div class="hidden md:flex md:justify-end">
+                <button
+                  type="button"
+                  class="{sortHeadingBtnClass} tabular-nums"
+                  aria-label="Sort by account count"
+                  onclick={() => toggleSort('accounts')}
+                >
+                  Accounts
+                  <span
+                    class="inline-flex shrink-0 flex-col text-[0.45rem] leading-[0.48rem]"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class={sortKey === 'accounts' && sortDir === 'asc'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground/40'}
+                    >▲</span>
+                    <span
+                      class={sortKey === 'accounts' && sortDir === 'desc'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground/40'}
+                    >▼</span>
+                  </span>
+                </button>
+              </div>
+              <div class="hidden md:flex md:justify-end">
+                <button
+                  type="button"
+                  class="{sortHeadingBtnClass} tabular-nums"
+                  aria-label="Sort by predicted total cost"
+                  onclick={() => toggleSort('cost')}
+                >
+                  Cost
+                  <span
+                    class="inline-flex shrink-0 flex-col text-[0.45rem] leading-[0.48rem]"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class={sortKey === 'cost' && sortDir === 'asc'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground/40'}
+                    >▲</span>
+                    <span
+                      class={sortKey === 'cost' && sortDir === 'desc'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground/40'}
+                    >▼</span>
+                  </span>
+                </button>
+              </div>
               <div class="hidden min-w-0 md:block">
                 <button
                   type="button"
@@ -407,31 +534,6 @@ const tripleFieldGridClass =
                   </span>
                 </button>
               </div>
-              <div class="hidden md:flex md:justify-end">
-                <button
-                  type="button"
-                  class="{sortHeadingBtnClass} tabular-nums"
-                  aria-label="Sort by account count"
-                  onclick={() => toggleSort('accounts')}
-                >
-                  Accounts
-                  <span
-                    class="inline-flex shrink-0 flex-col text-[0.45rem] leading-[0.48rem]"
-                    aria-hidden="true"
-                  >
-                    <span
-                      class={sortKey === 'accounts' && sortDir === 'asc'
-                        ? 'text-foreground'
-                        : 'text-muted-foreground/40'}
-                    >▲</span>
-                    <span
-                      class={sortKey === 'accounts' && sortDir === 'desc'
-                        ? 'text-foreground'
-                        : 'text-muted-foreground/40'}
-                    >▼</span>
-                  </span>
-                </button>
-              </div>
             </div>
             <div
               class="flex items-center justify-end gap-2 px-4 py-3 text-muted-foreground text-xs font-medium tracking-wide uppercase md:min-w-[11rem] md:px-3"
@@ -473,6 +575,35 @@ const tripleFieldGridClass =
                           {slugify(p.slug) || '—'}
                         </span>
                       </span>
+                      <span class="text-muted-foreground tabular-nums md:text-right">
+                        <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
+                          >Accounts ·
+                        </span>{p.accountNames.length}
+                      </span>
+                      <span class="min-w-0 md:text-right">
+                        <span class="flex w-full min-w-0 max-w-full flex-col md:items-end">
+                          <span
+                            class="block w-full font-medium tabular-nums text-foreground break-words md:text-right"
+                          >
+                            {formatCostAmount(projectCostSumByKind(p, 'current'))}
+                          </span>
+                          <span
+                            class="mt-0.5 flex w-full max-w-full items-baseline font-mono text-[0.75rem] font-normal leading-snug text-muted-foreground tabular-nums [overflow-wrap:anywhere] md:justify-end"
+                          >
+                            <span class="inline-flex max-w-full items-baseline gap-0">
+                              {formatCostAmount(projectCostSumByKind(p, 'lastMonth'))}
+                              <span
+                                class="mx-px shrink-0 text-muted-foreground/50"
+                                aria-hidden="true"
+                              >·</span>
+                              {formatCostAmount(projectCostSumByKind(p, 'predicted'))}
+                            </span>
+                          </span>
+                        </span>
+                        <span class="sr-only">
+                          Current total, then last month and predicted.
+                        </span>
+                      </span>
                       <span class="min-w-0 text-muted-foreground md:truncate md:text-left">
                         <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
                           >Template ·
@@ -484,11 +615,6 @@ const tripleFieldGridClass =
                         <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
                           >Created ·
                         </span>{p.createdLabel}
-                      </span>
-                      <span class="text-muted-foreground tabular-nums md:text-right">
-                        <span class="md:hidden text-[0.65rem] uppercase tracking-wide text-muted-foreground/80"
-                          >Accounts ·
-                        </span>{p.accountNames.length}
                       </span>
                     </Accordion.Trigger>
                     <div
@@ -783,32 +909,61 @@ const tripleFieldGridClass =
                       </div>
 
                       <div class="min-w-0">
-                        <span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                          Accounts
-                        </span>
                         <table
-                          class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                          class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
                         >
                           <colgroup>
-                            <col class="w-[36%]" />
-                            <col class="w-[44%]" />
-                            <col class="w-[20%]" />
+                            <col class="w-[18%]" />
+                            <col class="w-[22%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[24%]" />
                           </colgroup>
                           <thead>
-                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                            <tr class="border-border border-b-0 bg-muted/20 text-muted-foreground">
+                              <th
+                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Account name
                               </th>
-                              <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
+                              <th
+                                class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Email
                               </th>
-                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                              <th
+                                class="border-border border-b px-2 py-2 text-center font-medium tracking-wide uppercase text-foreground"
+                                colspan="3"
+                              >
+                                Cost
+                              </th>
+                              <th
+                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Account id
+                              </th>
+                            </tr>
+                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Last mo.
+                              </th>
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Current
+                              </th>
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Predicted
                               </th>
                             </tr>
                           </thead>
                           <tbody>
                             {#each p.accountNames as name, idx (`${p.id}-row-${idx}`)}
+                              {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                              {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                              {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
                               <tr class="border-border border-b last:border-b-0">
                                 <td class="min-w-0 px-3 py-2 align-middle">
                                   <Input
@@ -833,6 +988,27 @@ const tripleFieldGridClass =
                                   <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
                                     {accountAliasEmail(name, p.slug)}
                                   </span>
+                                </td>
+                                <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if lastCell.show}
+                                    {lastCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
+                                </td>
+                                <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if curCell.show}
+                                    {curCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
+                                </td>
+                                <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if predCell.show}
+                                    {predCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
                                 </td>
                                 <td class="min-w-0 px-3 py-2 align-middle">
                                   <Input
@@ -943,33 +1119,62 @@ const tripleFieldGridClass =
                       </div>
 
                       <div class="min-w-0">
-                        <span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                          Accounts
-                        </span>
                         <table
-                          class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                          class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
                         >
                           <colgroup>
-                            <col class="w-[36%]" />
-                            <col class="w-[44%]" />
-                            <col class="w-[20%]" />
+                            <col class="w-[18%]" />
+                            <col class="w-[22%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[24%]" />
                           </colgroup>
                           <thead>
-                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                            <tr class="border-border border-b-0 bg-muted/20 text-muted-foreground">
+                              <th
+                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Account name
                               </th>
-                              <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
+                              <th
+                                class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Email
                               </th>
-                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                              <th
+                                class="border-border border-b px-2 py-2 text-center font-medium tracking-wide uppercase text-foreground"
+                                colspan="3"
+                              >
+                                Cost
+                              </th>
+                              <th
+                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Account id
+                              </th>
+                            </tr>
+                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Last mo.
+                              </th>
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Current
+                              </th>
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Predicted
                               </th>
                             </tr>
                           </thead>
                           <tbody>
                             {#each p.accountNames as name, idx (`${p.id}-edit-acct-${idx}`)}
                               {@const accountIdHint = p.accountHints?.[idx]}
+                              {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                              {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                              {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
                               <tr class="border-border border-b last:border-b-0">
                                 <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
                                   {name}
@@ -978,6 +1183,27 @@ const tripleFieldGridClass =
                                   <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
                                     {accountAliasEmail(name, p.slug)}
                                   </span>
+                                </td>
+                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if lastCell.show}
+                                    {lastCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
+                                </td>
+                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if curCell.show}
+                                    {curCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
+                                </td>
+                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if predCell.show}
+                                    {predCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
                                 </td>
                                 <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
                                   {#if (accountIdHint ?? '').trim()}
@@ -1067,33 +1293,62 @@ const tripleFieldGridClass =
                       </div>
 
                       <div class="min-w-0">
-                        <span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                          Accounts
-                        </span>
                         <table
-                          class="mt-3 w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                          class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
                         >
                           <colgroup>
-                            <col class="w-[36%]" />
-                            <col class="w-[44%]" />
-                            <col class="w-[20%]" />
+                            <col class="w-[18%]" />
+                            <col class="w-[22%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[12%]" />
+                            <col class="w-[24%]" />
                           </colgroup>
                           <thead>
-                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                            <tr class="border-border border-b-0 bg-muted/20 text-muted-foreground">
+                              <th
+                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Account name
                               </th>
-                              <th class="min-w-0 px-3 py-2 text-left font-medium tracking-wide uppercase">
+                              <th
+                                class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Email
                               </th>
-                              <th class="px-3 py-2 text-left font-medium tracking-wide uppercase">
+                              <th
+                                class="border-border border-b px-2 py-2 text-center font-medium tracking-wide uppercase text-foreground"
+                                colspan="3"
+                              >
+                                Cost
+                              </th>
+                              <th
+                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                rowspan="2"
+                              >
                                 Account id
+                              </th>
+                            </tr>
+                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Last mo.
+                              </th>
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Current
+                              </th>
+                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                Predicted
                               </th>
                             </tr>
                           </thead>
                           <tbody>
                             {#each p.accountNames as name, idx (`${p.id}-readonly-acct-${idx}`)}
                               {@const accountIdHint = p.accountHints?.[idx]}
+                              {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                              {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                              {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
                               <tr class="border-border border-b last:border-b-0">
                                 <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
                                   {name}
@@ -1102,6 +1357,27 @@ const tripleFieldGridClass =
                                   <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
                                     {accountAliasEmail(name, p.slug)}
                                   </span>
+                                </td>
+                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if lastCell.show}
+                                    {lastCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
+                                </td>
+                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if curCell.show}
+                                    {curCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
+                                </td>
+                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                  {#if predCell.show}
+                                    {predCell.amount}
+                                  {:else}
+                                    <span class="text-muted-foreground">—</span>
+                                  {/if}
                                 </td>
                                 <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
                                   {#if (accountIdHint ?? '').trim()}
