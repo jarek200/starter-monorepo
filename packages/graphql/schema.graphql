@@ -78,10 +78,19 @@ input UpdateProjectInput {
   githubUrl: String
 }
 
+type GithubRepoOption {
+  fullName: String!
+  name: String!
+  isTemplate: Boolean!
+  private: Boolean!
+}
+
 type Query {
   getMyProfile: User
   listProjects: [Project!]!
   getProject(id: ID!): Project
+  """Repositories visible to the configured GitHub App installation (for template selection)."""
+  listGithubReposForTemplate: [GithubRepoOption!]!
 }
 
 type Mutation {

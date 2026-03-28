@@ -65,6 +65,7 @@ export default $config({
       createProjectLambda,
       createProvisioningStateMachine,
     } = await import('./infra/provisioning');
+    const { createGithubAppSsmParameters } = await import('./infra/github-app-params');
 
     // Storage: DynamoDB table
     const { table } = createStorage();
@@ -90,17 +91,35 @@ export default $config({
     const githubPrivateKeySecretArn =
       process.env.GITHUB_PRIVATE_KEY_SECRET_ARN ??
       $interpolate`arn:aws:secretsmanager:${aws.getRegionOutput().name}:${aws.getCallerIdentityOutput({}).accountId}:secret:/admin-factory/github-private-key`;
+    const githubPrivateKeySecretArnWildcard = $interpolate`${githubPrivateKeySecretArn}-*`;
+
+    const { githubAppIdParam, githubInstallationIdParam } = createGithubAppSsmParameters();
+    const githubIds = {
+      appId: githubAppIdParam.value,
+      installationId: githubInstallationIdParam.value,
+    };
 
     // Provisioning task Lambdas (called by Step Functions)
-    const provisioningFns = createProvisioningLambdas(table, githubPrivateKeySecretArn);
+    const provisioningFns = createProvisioningLambdas(
+      table,
+      githubPrivateKeySecretArn,
+      githubPrivateKeySecretArnWildcard,
+      githubIds
+    );
 
     // Step Functions state machine
     const stateMachine = createProvisioningStateMachine(provisioningFns);
 
-    // createProject Lambda (AppSync resolver — creates DynamoDB record + starts SFN)
-    const createProjectFn = createProjectLambda(table, stateMachine.arn);
+    // AppSync Lambda: createProject + listGithubReposForTemplate (same function / deployment package)
+    const createProjectFn = createProjectLambda(
+      table,
+      stateMachine.arn,
+      githubPrivateKeySecretArn,
+      githubPrivateKeySecretArnWildcard,
+      githubAppIdParam.value,
+      githubInstallationIdParam.value
+    );
 
-    // Lambda data source for AppSync (used by createProject mutation)
     const lambdaDataSource = createLambdaDataSource(api, createProjectFn.arn);
 
     // Resolvers: Add all resolvers (user + project)

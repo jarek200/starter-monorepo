@@ -61,12 +61,11 @@ export function createDataSource(
 
 export function createLambdaDataSource(
   api: ReturnType<typeof createApi>,
-  lambdaArn: $util.Input<string>
+  lambdaArn: $util.Input<string>,
+  options?: { name?: string }
 ) {
-  const lambdaDataSource = api.addDataSource({
-    name: 'lambda',
+  return api.addDataSource({
+    name: options?.name ?? 'lambda',
     lambda: lambdaArn,
   });
-
-  return lambdaDataSource;
 }

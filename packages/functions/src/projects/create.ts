@@ -10,6 +10,8 @@ import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import type { AppSyncResolverHandler } from 'aws-lambda';
 
+import { listGithubReposForTemplate } from '../provisioning/list-github-repos';
+
 const TABLE_NAME = process.env.TABLE_NAME!;
 const STATE_MACHINE_ARN = process.env.STATE_MACHINE_ARN!;
 
@@ -39,12 +41,14 @@ interface AppSyncIdentityCognito {
   claims: Record<string, unknown>;
 }
 
-export const handler: AppSyncResolverHandler<{ input: CreateProjectInput }, unknown> = async (
-  event
-) => {
+export const handler: AppSyncResolverHandler<unknown, unknown> = async (event) => {
+  if (event.info?.fieldName === 'listGithubReposForTemplate') {
+    return listGithubReposForTemplate();
+  }
+
   const identity = event.identity as AppSyncIdentityCognito;
   const userId = identity.sub;
-  const input = event.arguments.input;
+  const input = (event.arguments as { input: CreateProjectInput }).input;
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();

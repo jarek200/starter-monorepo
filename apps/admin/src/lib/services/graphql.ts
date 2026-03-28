@@ -75,6 +75,13 @@ export interface UpdateProjectInput {
   githubUrl?: string;
 }
 
+export interface GithubRepoOption {
+  fullName: string;
+  name: string;
+  isTemplate: boolean;
+  private: boolean;
+}
+
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 const PROJECT_FIELDS = `
@@ -92,6 +99,18 @@ export async function listProjects(): Promise<Project[]> {
 
   if (result.errors?.length) throw new Error(result.errors[0]?.message);
   return result.data?.listProjects ?? [];
+}
+
+export async function listGithubReposForTemplate(): Promise<GithubRepoOption[]> {
+  const client = await getClient();
+  const result = (await client.graphql({
+    query: `query ListGithubReposForTemplate {
+      listGithubReposForTemplate { fullName name isTemplate private }
+    }`,
+  })) as GraphQLResult<{ listGithubReposForTemplate: GithubRepoOption[] }>;
+
+  if (result.errors?.length) throw new Error(result.errors[0]?.message);
+  return result.data?.listGithubReposForTemplate ?? [];
 }
 
 export async function getProject(id: string): Promise<Project | null> {

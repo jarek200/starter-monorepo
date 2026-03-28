@@ -11,11 +11,22 @@ const LAMBDA_DEFAULTS = {
   },
 };
 
+const LAMBDA_DEFAULTS_WITH_SODIUM = {
+  ...LAMBDA_DEFAULTS,
+  nodejs: {
+    ...LAMBDA_DEFAULTS.nodejs,
+    install: ['libsodium-wrappers'],
+    esbuild: { external: [...LAMBDA_DEFAULTS.nodejs.esbuild.external, 'libsodium-wrappers'] },
+  },
+};
+
 // ─── Provisioning task Lambdas ────────────────────────────────────────────────
 
 export function createProvisioningLambdas(
   table: ReturnType<typeof import('./storage').createStorage>['table'],
-  githubPrivateKeySecretArn: string
+  githubPrivateKeySecretArn: $util.Input<string>,
+  githubPrivateKeySecretArnWildcard: $util.Input<string>,
+  githubIds: { appId: $util.Input<string>; installationId: $util.Input<string> }
 ) {
   /** Updates DynamoDB provisioning phase — called at every SFN transition */
   const updateStatusFn = new sst.aws.Function('UpdateStatus', {
@@ -23,9 +34,7 @@ export function createProvisioningLambdas(
     handler: 'packages/functions/src/provisioning/update-status.handler',
     link: [table],
     environment: { TABLE_NAME: table.name },
-    permissions: [
-      { actions: ['dynamodb:UpdateItem'], resources: [table.arn] },
-    ],
+    permissions: [{ actions: ['dynamodb:UpdateItem'], resources: [table.arn] }],
   });
 
   /** AWS Organizations account vending (runs in management account) */
@@ -67,32 +76,32 @@ export function createProvisioningLambdas(
     timeout: '120 seconds',
     handler: 'packages/functions/src/provisioning/create-repo.handler',
     environment: {
-      GITHUB_APP_ID: process.env.GITHUB_APP_ID ?? '',
+      GITHUB_APP_ID: githubIds.appId,
       GITHUB_PRIVATE_KEY_SECRET_ARN: githubPrivateKeySecretArn,
-      GITHUB_INSTALLATION_ID: process.env.GITHUB_INSTALLATION_ID ?? '',
+      GITHUB_INSTALLATION_ID: githubIds.installationId,
     },
     permissions: [
       {
         actions: ['secretsmanager:GetSecretValue'],
-        resources: [githubPrivateKeySecretArn],
+        resources: [githubPrivateKeySecretArnWildcard],
       },
     ],
   });
 
   /** Configures GitHub Environments + AWS_ROLE_ARN secrets */
   const configureEnvironmentsFn = new sst.aws.Function('ConfigureEnvironments', {
-    ...LAMBDA_DEFAULTS,
+    ...LAMBDA_DEFAULTS_WITH_SODIUM,
     timeout: '120 seconds',
     handler: 'packages/functions/src/provisioning/configure-environments.handler',
     environment: {
-      GITHUB_APP_ID: process.env.GITHUB_APP_ID ?? '',
+      GITHUB_APP_ID: githubIds.appId,
       GITHUB_PRIVATE_KEY_SECRET_ARN: githubPrivateKeySecretArn,
-      GITHUB_INSTALLATION_ID: process.env.GITHUB_INSTALLATION_ID ?? '',
+      GITHUB_INSTALLATION_ID: githubIds.installationId,
     },
     permissions: [
       {
         actions: ['secretsmanager:GetSecretValue'],
-        resources: [githubPrivateKeySecretArn],
+        resources: [githubPrivateKeySecretArnWildcard],
       },
     ],
   });
@@ -110,15 +119,23 @@ export function createProvisioningLambdas(
 
 export function createProjectLambda(
   table: ReturnType<typeof import('./storage').createStorage>['table'],
-  stateMachineArn: $util.Input<string>
+  stateMachineArn: $util.Input<string>,
+  githubPrivateKeySecretArn: $util.Input<string>,
+  githubPrivateKeySecretArnWildcard: $util.Input<string>,
+  githubAppId: $util.Input<string>,
+  githubInstallationId: $util.Input<string>
 ) {
   return new sst.aws.Function('CreateProject', {
     ...LAMBDA_DEFAULTS,
+    timeout: '60 seconds',
     handler: 'packages/functions/src/projects/create.handler',
     link: [table],
     environment: {
       TABLE_NAME: table.name,
       STATE_MACHINE_ARN: stateMachineArn,
+      GITHUB_APP_ID: githubAppId,
+      GITHUB_PRIVATE_KEY_SECRET_ARN: githubPrivateKeySecretArn,
+      GITHUB_INSTALLATION_ID: githubInstallationId,
     },
     permissions: [
       {
@@ -129,15 +146,17 @@ export function createProjectLambda(
         actions: ['states:StartExecution'],
         resources: [stateMachineArn],
       },
+      {
+        actions: ['secretsmanager:GetSecretValue'],
+        resources: [githubPrivateKeySecretArnWildcard],
+      },
     ],
   });
 }
 
 // ─── Step Functions state machine ─────────────────────────────────────────────
 
-export function createProvisioningStateMachine(
-  fns: ReturnType<typeof createProvisioningLambdas>
-) {
+export function createProvisioningStateMachine(fns: ReturnType<typeof createProvisioningLambdas>) {
   const {
     updateStatusFn,
     vendAccountFn,

@@ -6,7 +6,7 @@ import { isLiveMode } from '$lib/amplify';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
-import type { Project as ApiProject } from '$lib/services/graphql';
+import type { Project as ApiProject, GithubRepoOption } from '$lib/services/graphql';
 import * as api from '$lib/services/graphql';
 import { auth } from '$lib/stores/auth';
 
@@ -132,6 +132,34 @@ async function pollProjectUntilDone(projectId: string) {
 $effect(() => {
   if (!browser || !liveMode) return;
   loadProjectsFromApi();
+});
+
+// ─── GitHub template repo list (live backend: App installation repos) ───────
+
+/** True until the first `listGithubReposForTemplate` finishes (live backend only). */
+let githubReposLoading = $state(hasLiveBackend);
+let githubRepoOptions = $state<GithubRepoOption[]>([]);
+let githubReposError = $state('');
+
+async function loadGithubRepoOptions() {
+  if (!browser || !hasLiveBackend) return;
+  githubReposLoading = true;
+  githubReposError = '';
+  try {
+    const { ensureAmplifyConfigured } = await import('$lib/amplify');
+    await ensureAmplifyConfigured();
+    githubRepoOptions = await api.listGithubReposForTemplate();
+  } catch (e) {
+    githubReposError = (e as Error).message ?? 'Failed to load GitHub repos';
+    githubRepoOptions = [];
+  } finally {
+    githubReposLoading = false;
+  }
+}
+
+$effect(() => {
+  if (!browser || !hasLiveBackend) return;
+  void loadGithubRepoOptions();
 });
 
 // ─── Simulation fallback (local-only mode) ────────────────────────────────────
@@ -282,6 +310,29 @@ function githubOrgForApi(row: ProjectRow): string | undefined {
     if (owner) return owner;
   }
   return undefined;
+}
+
+/** Draft template field: `<select>` value or `__custom__` for manual `owner/repo`. */
+function templateRepoSelectValue(p: ProjectRow): string {
+  const t = p.templateLabel.trim();
+  if (!t) return '';
+  if (githubRepoOptions.some((r) => r.fullName === t)) return t;
+  return '__custom__';
+}
+
+function onTemplateRepoSelect(projectId: string, value: string) {
+  if (value === '__custom__') {
+    patchProject(projectId, { templateLabel: '' });
+    return;
+  }
+  patchProject(projectId, { templateLabel: value });
+}
+
+function showTemplateRepoCustomInput(p: ProjectRow): boolean {
+  if (!hasLiveBackend) return true;
+  if (githubReposLoading) return true;
+  if (githubRepoOptions.length === 0) return true;
+  return templateRepoSelectValue(p) === '__custom__';
 }
 
 /** Short month, zero-padded day, and year for the Created column */
@@ -1454,14 +1505,37 @@ const accountMobileFieldLabelClass =
                             <Label for={`${p.id}-template`} class="text-muted-foreground text-xs font-normal">
                               Template repo
                             </Label>
-                            <Input
-                              id={`${p.id}-template`}
-                              type="text"
-                              placeholder="owner/repo (template to generate from)"
-                              value={p.templateLabel}
-                              oninput={(e) => patchProject(p.id, { templateLabel: e.currentTarget.value })}
-                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
-                            />
+                            {#if hasLiveBackend && !githubReposLoading && githubRepoOptions.length > 0}
+                              <select
+                                id={`${p.id}-template-select`}
+                                class="w-full min-w-0 rounded-sm border border-border bg-transparent px-3 py-2 font-mono text-[0.85rem] text-foreground"
+                                value={templateRepoSelectValue(p)}
+                                onchange={(e) => onTemplateRepoSelect(p.id, e.currentTarget.value)}
+                                aria-label="Choose template repository from GitHub"
+                              >
+                                <option value="">Select repository…</option>
+                                {#each githubRepoOptions as r (r.fullName)}
+                                  <option value={r.fullName}>
+                                    {r.fullName}{r.isTemplate ? ' ★' : ''}{r.private ? ' · private' : ''}
+                                  </option>
+                                {/each}
+                                <option value="__custom__">Custom owner/repo…</option>
+                              </select>
+                            {/if}
+                            {#if showTemplateRepoCustomInput(p)}
+                              <Input
+                                id={`${p.id}-template`}
+                                type="text"
+                                placeholder="owner/repo (template to generate from)"
+                                value={p.templateLabel}
+                                oninput={(e) =>
+                                  patchProject(p.id, { templateLabel: e.currentTarget.value })}
+                                class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                              />
+                            {/if}
+                            {#if githubReposError && hasLiveBackend}
+                              <p class="text-[0.7rem] text-destructive">{githubReposError}</p>
+                            {/if}
                           </div>
                           <div class="flex min-w-0 flex-col gap-2">
                             <Label for={`${p.id}-github-org`} class="text-muted-foreground text-xs font-normal">

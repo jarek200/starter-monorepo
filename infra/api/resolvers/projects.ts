@@ -36,6 +36,35 @@ export function addProjectResolvers(
     },
   });
 
+  // Query: listGithubReposForTemplate — same Lambda as createProject (field routing in handler)
+  api.addResolver('Query listGithubReposForTemplate', {
+    dataSource: lambdaDataSource.name,
+    code: `
+      import { util } from '@aws-appsync/utils';
+
+      export function request(ctx) {
+        return {
+          operation: 'Invoke',
+          payload: {
+            arguments: ctx.arguments,
+            identity: ctx.identity,
+            info: ctx.info,
+          },
+        };
+      }
+
+      export function response(ctx) {
+        if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
+        return ctx.result;
+      }
+    `,
+    transform: {
+      resolver: (_args, opts) => {
+        opts.deleteBeforeReplace = true;
+      },
+    },
+  });
+
   // Query: listProjects — query by userId via GSI1
   api.addResolver('Query listProjects', {
     dataSource: dynamoDataSource.name,

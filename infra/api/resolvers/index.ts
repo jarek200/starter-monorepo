@@ -1,7 +1,7 @@
 /// <reference path="../../../.sst/platform/config.d.ts" />
 
-import { addUserResolvers } from './users';
 import { addProjectResolvers } from './projects';
+import { addUserResolvers } from './users';
 
 export function addAllResolvers(
   api: ReturnType<typeof import('../api-setup').createApi>,

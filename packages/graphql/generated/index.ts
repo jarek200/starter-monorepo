@@ -25,6 +25,14 @@ export type CreateProjectInput = {
   websiteUrl?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type GithubRepoOption = {
+  __typename?: 'GithubRepoOption';
+  fullName: Scalars['String']['output'];
+  isTemplate: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  private: Scalars['Boolean']['output'];
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
   createProject: Project;
@@ -101,6 +109,8 @@ export type Query = {
   __typename?: 'Query';
   getMyProfile?: Maybe<User>;
   getProject?: Maybe<Project>;
+  /** Repositories visible to the configured GitHub App installation (for template selection). */
+  listGithubReposForTemplate: Array<GithubRepoOption>;
   listProjects: Array<Project>;
 };
 
