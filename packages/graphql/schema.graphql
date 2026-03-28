@@ -55,8 +55,8 @@ type Project {
   websiteUrl: String
   awsSignInUrl: String
   error: String
-  createdAt: AWSDateTime!
-  updatedAt: AWSDateTime!
+  createdAt: String!
+  updatedAt: String!
 }
 
 input CreateProjectInput {

@@ -86,7 +86,7 @@ export default $config({
     //     --secret-string "$(cat your-app.private-key.pem)"
     const githubPrivateKeySecretArn =
       process.env.GITHUB_PRIVATE_KEY_SECRET_ARN ??
-      `arn:aws:secretsmanager:${aws.getRegionOutput().name}:${aws.getCallerIdentityOutput({}).accountId}:secret:/admin-factory/github-private-key`;
+      $interpolate`arn:aws:secretsmanager:${aws.getRegionOutput().name}:${aws.getCallerIdentityOutput({}).accountId}:secret:/admin-factory/github-private-key`;
 
     // Provisioning task Lambdas (called by Step Functions)
     const provisioningFns = createProvisioningLambdas(table, githubPrivateKeySecretArn);

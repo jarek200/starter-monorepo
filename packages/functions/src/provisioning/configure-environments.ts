@@ -143,6 +143,11 @@ async function setEnvironmentSecret(
 export const handler = async (event: ConfigureEnvironmentsInput): Promise<void> => {
   const { repoFullName, accounts } = event;
 
+  if (!repoFullName) {
+    console.log('No repoFullName provided, skipping environment configuration');
+    return;
+  }
+
   console.log(`Configuring GitHub environments for ${repoFullName}`);
 
   const token = await getGitHubToken();

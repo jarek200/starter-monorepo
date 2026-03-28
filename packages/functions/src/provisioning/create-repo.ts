@@ -155,8 +155,14 @@ jobs:
 `;
 }
 
-export const handler = async (event: CreateRepoInput): Promise<CreateRepoOutput> => {
+export const handler = async (event: CreateRepoInput): Promise<CreateRepoOutput | null> => {
   const { slug, name, templateRepo, githubOrg, accounts } = event;
+
+  if (!templateRepo || templateRepo.trim() === '') {
+    console.log('No templateRepo provided, skipping repo creation');
+    return { githubUrl: '', repoFullName: '' };
+  }
+
   const [templateOwner, templateName] = templateRepo.split('/');
 
   if (!templateOwner || !templateName) {
@@ -199,17 +205,27 @@ export const handler = async (event: CreateRepoInput): Promise<CreateRepoOutput>
   const workflowPath = '.github/workflows/deploy.yml';
 
   try {
-    // Get the current file SHA so we can update it
-    const currentFile = (await githubRequest(
-      token,
-      'GET',
-      `/repos/${repo.full_name}/contents/${workflowPath}`
-    )) as { sha: string };
+    // Get the current file SHA so we can update it (if it exists)
+    let currentSha: string | undefined;
+    try {
+      const currentFile = (await githubRequest(
+        token,
+        'GET',
+        `/repos/${repo.full_name}/contents/${workflowPath}`
+      )) as { sha: string };
+      currentSha = currentFile.sha;
+    } catch (err: any) {
+      if (err.message && err.message.includes('404')) {
+        console.log(`Workflow file ${workflowPath} not found. Proceeding to create it.`);
+      } else {
+        throw err;
+      }
+    }
 
     await githubRequest(token, 'PUT', `/repos/${repo.full_name}/contents/${workflowPath}`, {
       message: 'chore: configure deploy matrix for project environments',
       content: Buffer.from(deployWorkflow).toString('base64'),
-      sha: currentFile.sha,
+      sha: currentSha,
       branch: repo.default_branch,
     });
 
