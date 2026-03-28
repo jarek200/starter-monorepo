@@ -65,7 +65,9 @@ async function initializeAmplify(): Promise<boolean> {
 /** True when SST env vars are present — used to switch between real/mock mode */
 export function isLiveMode(): boolean {
   if (typeof window === 'undefined') return false;
-  interface WindowWithEnv extends Window { ENV?: Record<string, string> }
+  interface WindowWithEnv extends Window {
+    ENV?: Record<string, string>;
+  }
   const env = (window as WindowWithEnv).ENV || import.meta.env;
   return !!(env.VITE_USER_POOL_ID && env.VITE_USER_POOL_CLIENT_ID && env.VITE_GRAPHQL_ENDPOINT);
 }

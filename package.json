@@ -7,7 +7,7 @@
     "build": "turbo run build",
     "dev": "pnpm sst dev --mode basic",
     "dev:tui": "pnpm sst dev",
-    "dev:local": "turbo run dev --filter=@sst-monorepo/web",
+    "dev:local": "pnpm --filter @sst-monorepo/admin dev",
     "dev:admin": "pnpm --filter @sst-monorepo/admin dev",
     "deploy:dev": "pnpm sst deploy --stage dev",
     "deploy:stage": "pnpm sst deploy --stage stage",
@@ -43,7 +43,7 @@
   ],
   "author": "",
   "license": "ISC",
-  "description": "SST Monorepo Starter Template with Landing Page, Login, and Dashboard",
+  "description": "SST monorepo — admin control plane (SvelteKit) and serverless backend",
   "devDependencies": {
     "@biomejs/biome": "^2.3.0",
     "@pulumi/aws": "^7.12.0",

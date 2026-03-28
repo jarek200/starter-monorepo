@@ -107,7 +107,7 @@ yarn webiny info --env dev
 Set these in the SvelteKit app for the matching stage:
 
 ```bash
-# apps/web/.env.local (local dev — gitignored)
+# apps/admin/.env (local dev — gitignored, if you run the admin app without SST)
 WEBINY_API_URL=https://<id>.cloudfront.net/graphql
 WEBINY_API_KEY=<api-token-from-admin>
 

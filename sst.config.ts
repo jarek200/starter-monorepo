@@ -125,7 +125,7 @@ export default $config({
     // Resolvers: Add all resolvers (user + project)
     addAllResolvers(api, dynamoDataSource, lambdaDataSource, String(table.name));
 
-    // ─── SvelteKit apps ──────────────────────────────────────────────────────
+    // ─── Admin SvelteKit app ─────────────────────────────────────────────────
 
     const svelteKitTransform = {
       server(server: Record<string, unknown>) {
@@ -152,15 +152,7 @@ export default $config({
       VITE_STAGE: $app.stage,
     };
 
-    // Main product site
-    const web = new sst.aws.SvelteKit('Web', {
-      path: 'apps/web',
-      link: [table, auth, authClient, api],
-      transform: svelteKitTransform,
-      environment: sharedEnv,
-    });
-
-    // Admin control plane
+    // Admin control plane (only frontend)
     const admin = new sst.aws.SvelteKit('Admin', {
       path: 'apps/admin',
       link: [table, auth, authClient, api],
@@ -173,7 +165,6 @@ export default $config({
       userPoolId: auth.id,
       userPoolClientId: authClient.id,
       apiUrl: api.url,
-      webUrl: web.url,
       adminUrl: admin.url,
       stateMachineArn: stateMachine.arn,
     };

@@ -1,8 +1,8 @@
 {
-  "apps/web/**/*.{js,jsx,ts,tsx,svelte}": [
-    "pnpm --filter @sst-monorepo/web exec biome check --write"
+  "apps/admin/**/*.{js,jsx,ts,tsx,svelte}": [
+    "pnpm --filter @sst-monorepo/admin exec biome check --write"
   ],
-  "apps/web/**/*.json": ["pnpm --filter @sst-monorepo/web exec biome format --write"],
+  "apps/admin/**/*.json": ["pnpm --filter @sst-monorepo/admin exec biome format --write"],
   "packages/**/*.{js,jsx,ts,tsx}": ["pnpm exec biome check --write --no-errors-on-unmatched"],
   "*.json": ["pnpm exec biome format --write"]
 }

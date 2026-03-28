@@ -16,7 +16,7 @@ A modern, production-ready platform template for building full-stack serverless 
 
 ```
 pnpm workspace (root)
-├── apps/web          SvelteKit frontend (SST SvelteKit component)
+├── apps/admin        SvelteKit admin app (SST SvelteKit component)
 ├── packages/         Shared code (core, graphql, functions)
 ├── infra/            SST infrastructure modules (AppSync, Cognito, DynamoDB)
 └── sst.config.ts     SST v4 config — stage-aware, multi-account
@@ -132,18 +132,15 @@ After creating a repository from this template, do these before shipping:
 ```
 sst-monorepo/
 ├── apps/
-│   └── web/                      SvelteKit frontend
+│   └── admin/                    SvelteKit admin UI
 │       ├── src/
 │       │   ├── lib/
 │       │   │   ├── components/ui/  UI components
 │       │   │   ├── services/       GraphQL service
-│       │   │   ├── stores/         Svelte stores (auth)
-│       │   │   └── utils/          Utility functions
+│       │   │   └── stores/         Auth store
 │       │   └── routes/
-│       │       ├── +page.svelte    Landing page
-│       │       ├── login/          Login/signup page
-│       │       └── (protected)/    Protected routes
-│       │           └── dashboard/  Dashboard page
+│       │       ├── +page.svelte    Sign-in
+│       │       └── dashboard/      Main admin UI
 │       └── package.json
 ├── packages/
 │   ├── core/                     Shared types and utilities
@@ -278,9 +275,8 @@ import type { User, UpdateUserInput } from '@sst-monorepo/graphql';
 
 `pnpm dev` (SST dev mode) injects all variables automatically — no `.env` needed.
 
-For local-only development (`pnpm dev:local`), create a `.env` file in the repo root and fill in
-the values from a previous `pnpm deploy:dev` output (see the `environment` block in `sst.config.ts`
-for the variable names).
+For local-only admin development (`pnpm dev:local`), set `VITE_*` variables the same way as in
+`sst.config.ts`’s `sharedEnv` (or use `pnpm dev` so SST injects them).
 
 ## Database schema (DynamoDB — single-table design)
 
@@ -299,7 +295,7 @@ Entity patterns:
 1. Update `packages/graphql/schema.graphql`
 2. Run `pnpm codegen`
 3. Add resolver in `infra/api/resolvers/`
-4. Add service method in `apps/web/src/lib/services/graphql.ts`
+4. Add service method in `apps/admin/src/lib/services/graphql.ts`
 
 ### New Lambda function
 

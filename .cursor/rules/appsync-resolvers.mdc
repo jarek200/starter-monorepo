@@ -142,7 +142,7 @@ export function addAllResolvers(
 
 ### 4. Add Frontend Service
 
-Add GraphQL client functions in `apps/web/src/lib/services/graphql.ts`:
+Add GraphQL client functions in `apps/admin/src/lib/services/graphql.ts`:
 
 ```typescript
 export async function getMyEntity() {

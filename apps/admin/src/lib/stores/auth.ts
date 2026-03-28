@@ -1,7 +1,7 @@
-import { writable, derived } from 'svelte/store';
+import { signOut } from 'aws-amplify/auth';
+import { derived, writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
-import { signOut } from 'aws-amplify/auth';
 import { resetClient } from '$lib/services/graphql';
 
 export interface AdminUser {
