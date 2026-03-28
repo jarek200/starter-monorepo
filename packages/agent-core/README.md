@@ -1,69 +1,78 @@
-# Away — `packages/agent-core` (Bedrock AgentCore + Strands)
+# Python Bedrock AgentCore Starter — `packages/agent-core`
 
-This package follows the official **Amazon Bedrock AgentCore starter toolkit** flow for TypeScript ([AWS docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-get-started-toolkit-typescript.html)).
+This folder follows the official **Amazon Bedrock AgentCore starter toolkit** flow for **Python**.
 
 ## Prerequisites
 
-- **Node 20+** (repo uses 22 — OK)
-- **Python 3.10+** — required for the `agentcore` CLI
-- **AWS credentials** with permissions for the toolkit ([starter toolkit permissions](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html#runtime-permissions-starter-toolkit))
-- **Bedrock model access** enabled in the console for models your Strands agent uses
+- **Python 3.10+**
+- **AWS credentials** with permissions for the toolkit
+- **Bedrock model access** enabled for the models your Strands agent will use
 
-## 1. Install the CLI (once per machine)
+## 1. Create a virtual environment
 
 ```bash
-pip install --upgrade bedrock-agentcore-starter-toolkit
+cd packages/agent-core
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+## 2. Install dependencies
+
+```bash
+pip install -r requirements.txt
 agentcore --help
 ```
 
-## 2. Install Node dependencies (from repo root)
+This installs:
+- `bedrock-agentcore`
+- `strands-agents`
+- `bedrock-agentcore-starter-toolkit`
 
-```bash
-pnpm install
-```
-
-## 3. Configure deployment (run inside this directory)
-
-From **`packages/agent-core/`** (not repo root):
+## 3. Configure the runtime
 
 ```bash
 cd packages/agent-core
-agentcore configure --entrypoint src/agent.ts
+source .venv/bin/activate
+agentcore configure --entrypoint src/agent.py
 ```
 
-The CLI will prompt for an agent name and create **`.bedrock_agentcore.yaml`**.  
-TypeScript agents use **container** deployment (toolkit handles CodeBuild / ECR).
+The CLI creates **`.bedrock_agentcore.yaml`** for local dev and deploy.
 
-## 4. Run locally (mimics AgentCore runtime)
+## 4. Run locally
 
-Still in `packages/agent-core/`:
+Preferred (toolkit runtime emulator):
 
 ```bash
+cd packages/agent-core
+source .venv/bin/activate
 agentcore dev
 ```
 
-Default: **http://localhost:8080**. In another terminal:
-
-```bash
-agentcore invoke --dev '{"prompt": "Hello!"}'
-```
-
-Or from repo root, use the pnpm shortcut (plain `tsx` dev, not the toolkit emulator):
-
-```bash
-pnpm away
-```
-
-For **toolkit-accurate** local behavior, prefer `agentcore dev` inside `packages/agent-core`.
-
-## 5. Deploy to AWS
+In another terminal:
 
 ```bash
 cd packages/agent-core
+source .venv/bin/activate
+agentcore invoke --dev '{"prompt": "Hello!"}'
+```
+
+Quick direct run from repo root:
+
+```bash
+pnpm agent:python
+```
+
+`pnpm agent:python` uses `.venv/bin/python` if present, otherwise falls back to `python3`.
+
+## 5. Deploy
+
+```bash
+cd packages/agent-core
+source .venv/bin/activate
 agentcore deploy
 ```
 
-Save the **agent runtime ARN** from the output. Invoke:
+Save the runtime ARN from the output, then invoke with:
 
 ```bash
 agentcore invoke '{"prompt": "tell me a joke"}'
@@ -73,15 +82,12 @@ agentcore invoke '{"prompt": "tell me a joke"}'
 
 ```bash
 cd packages/agent-core
+source .venv/bin/activate
 agentcore destroy
 ```
 
 ## Monorepo notes
 
-- **`pnpm away`** → `pnpm --filter @sst-monorepo/agent-core dev` (watches `src/agent.ts` only).
-- **`.bedrock_agentcore.yaml`** is local/toolkit-specific; add to git if your team shares deploy config, or keep private — do not commit secrets.
-- **SST** (`sst.config.ts`) is unchanged; AgentCore deploy is separate until you choose to wire IAM/outputs in `infra/`.
-
-## Cursor
-
-Use the **Away** rule (`.cursor/rules/away.mdc`) when editing agent code.
+- This folder is **Python-first**, not a pnpm workspace package.
+- SST (`sst.config.ts`) is unchanged; AgentCore deploy is separate until you wire IAM/outputs in `infra/`.
+- Do not commit secrets inside `.bedrock_agentcore.yaml` or shell history.

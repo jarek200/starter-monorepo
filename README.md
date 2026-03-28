@@ -10,7 +10,7 @@ A modern, production-ready platform template for building full-stack serverless 
 - **Authentication**: AWS Cognito User Pools
 - **Infrastructure**: SST v4 with Pulumi
 - **Monorepo**: pnpm workspaces + Turborepo (task caching)
-- **Agents (optional)**: `packages/agent-core` — Strands + **Bedrock AgentCore** starter toolkit (`pnpm away`, then `agentcore` CLI — see `packages/agent-core/README.md`) + Cursor rule **Away**
+- **Agents (optional)**: `packages/agent-core` — Python + Strands + **Bedrock AgentCore** starter toolkit (`pnpm agent:python`, then `agentcore` CLI — see `packages/agent-core/README.md`) + Cursor rule **Python AgentCore**
 
 ## Architecture overview
 
