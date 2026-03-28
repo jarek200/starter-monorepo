@@ -358,7 +358,7 @@ const sortHeadingBtnClass =
 
 /** Chevron, then name | accounts | cost | template | created (inside accordion trigger) */
 const summaryTriggerGridClass =
-  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-center gap-x-4 gap-y-1 py-3 pr-2 pl-4 text-left md:grid-cols-[2rem_minmax(0,1fr)_3.5rem_minmax(9rem,12rem)_minmax(0,12rem)_10.5rem] md:gap-x-8';
+  'grid min-h-14 min-w-0 flex-1 grid-cols-1 items-start gap-x-4 gap-y-1 py-3 pr-2 pl-4 text-left md:items-center md:grid-cols-[2rem_minmax(0,1fr)_3.5rem_minmax(9rem,12rem)_minmax(0,12rem)_10.5rem] md:gap-x-8';
 
 /** Header row: same grid columns as trigger + space for actions */
 const headerLeftGridClass =
@@ -367,6 +367,12 @@ const headerLeftGridClass =
 /** Three fields in a row: 1 col, 2 from sm, 3 from lg (name block or URL block) */
 const tripleFieldGridClass =
   'grid min-w-0 grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2 lg:grid-cols-3';
+
+/** Stacked account row on small screens (AWS accounts table) */
+const accountMobileCardClass =
+  'flex flex-col gap-3 rounded-md border border-border bg-muted/10 px-3 py-3 shadow-sm';
+const accountMobileFieldLabelClass =
+  'text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground';
 </script>
 
 <svelte:head>
@@ -542,15 +548,18 @@ const tripleFieldGridClass =
             </div>
           </div>
 
-          <Accordion.Root type="multiple" class="min-w-0 divide-y divide-border" bind:value={accordionValue}>
-            {#each displayedProjects as p (p.id)}
-              <Accordion.Item value={p.id} class="min-w-0 overflow-x-hidden overflow-y-visible border-0">
+          <Accordion.Root type="multiple" class="min-w-0" bind:value={accordionValue}>
+            {#each displayedProjects as p, rowIndex (p.id)}
+              <Accordion.Item
+                value={p.id}
+                class="min-w-0 overflow-x-hidden overflow-y-visible border-x-0 border-b-0 border-border {rowIndex > 0 ? 'border-t' : ''}"
+              >
                 <Accordion.Header class="m-0 overflow-visible p-0">
                   <div
-                    class="flex w-full min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-visible md:flex-row md:items-stretch"
+                    class="flex w-full min-w-0 max-w-full flex-row items-start overflow-x-hidden overflow-y-visible md:items-stretch"
                   >
                     <Accordion.Trigger
-                      class="{summaryTriggerGridClass} overflow-visible rounded-none border-0 bg-transparent text-left transition-colors hover:bg-muted/15 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&[data-state=open]_svg]:rotate-180"
+                      class="{summaryTriggerGridClass} min-w-0 flex-1 overflow-visible rounded-none border-0 bg-transparent text-left transition-colors hover:bg-muted/15 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&[data-state=open]_svg]:rotate-180"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -562,7 +571,7 @@ const tripleFieldGridClass =
                         stroke-width="2"
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        class="shrink-0 justify-self-start text-muted-foreground transition-transform duration-200 md:mx-auto md:justify-self-center"
+                        class="size-[18px] shrink-0 justify-self-start text-muted-foreground transition-transform duration-200 md:mx-auto md:justify-self-center"
                         aria-hidden="true"
                       >
                         <path d="m6 9 6 6 6-6" />
@@ -618,7 +627,7 @@ const tripleFieldGridClass =
                       </span>
                     </Accordion.Trigger>
                     <div
-                      class="flex flex-wrap items-center justify-end gap-2 overflow-visible py-3 pr-4 pl-2 md:min-w-[11rem] md:px-3"
+                      class="flex shrink-0 flex-wrap items-center justify-end gap-2 self-start overflow-visible py-3 pr-4 pl-1 md:min-w-[11rem] md:shrink md:self-auto md:px-3"
                     >
                       {#if p.isDraft}
                         <button
@@ -909,131 +918,208 @@ const tripleFieldGridClass =
                       </div>
 
                       <div class="min-w-0">
-                        <table
-                          class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
-                        >
-                          <colgroup>
-                            <col class="w-[18%]" />
-                            <col class="w-[22%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[24%]" />
-                          </colgroup>
-                          <thead>
-                            <tr class="border-border border-b-0 bg-muted/20 text-muted-foreground">
-                              <th
-                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
+                        <div class="flex flex-col gap-3 md:hidden">
+                          {#each p.accountNames as name, idx (`${p.id}-acct-m-${idx}`)}
+                            {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                            {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                            {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
+                            <div class={accountMobileCardClass}>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Account name</span>
+                                <Input
+                                  type="text"
+                                  placeholder="e.g. myapp-int"
+                                  value={name}
+                                  oninput={(e) => {
+                                    const id = p.id;
+                                    const i = idx;
+                                    const v = e.currentTarget.value;
+                                    projects = projects.map((x) => {
+                                      if (x.id !== id) return x;
+                                      const accountNames = x.accountNames.slice();
+                                      accountNames[i] = v;
+                                      return { ...x, accountNames };
+                                    });
+                                  }}
+                                  class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-sm"
+                                />
+                              </div>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Email</span>
+                                <span class="font-mono text-[0.75rem] text-foreground/90 break-all leading-snug">
+                                  {accountAliasEmail(name, p.slug)}
+                                </span>
+                              </div>
+                              <div
+                                class="grid grid-cols-3 gap-2 rounded-sm border border-border/70 bg-background/40 px-2 py-2"
                               >
-                                Account name
-                              </th>
-                              <th
-                                class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
-                              >
-                                Email
-                              </th>
-                              <th
-                                class="border-border border-b px-2 py-2 text-center font-medium tracking-wide uppercase text-foreground"
-                                colspan="3"
-                              >
-                                Cost
-                              </th>
-                              <th
-                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
-                              >
-                                Account id
-                              </th>
-                            </tr>
-                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Last mo.
-                              </th>
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Current
-                              </th>
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Predicted
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {#each p.accountNames as name, idx (`${p.id}-row-${idx}`)}
-                              {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
-                              {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
-                              {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
-                              <tr class="border-border border-b last:border-b-0">
-                                <td class="min-w-0 px-3 py-2 align-middle">
-                                  <Input
-                                    type="text"
-                                    placeholder="e.g. myapp-int"
-                                    value={name}
-                                    oninput={(e) => {
-                                      const id = p.id;
-                                      const i = idx;
-                                      const v = e.currentTarget.value;
-                                      projects = projects.map((x) => {
-                                        if (x.id !== id) return x;
-                                        const accountNames = x.accountNames.slice();
-                                        accountNames[i] = v;
-                                        return { ...x, accountNames };
-                                      });
-                                    }}
-                                    class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-sm"
-                                  />
-                                </td>
-                                <td class="min-w-0 px-3 py-2 align-middle">
-                                  <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
-                                    {accountAliasEmail(name, p.slug)}
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Last mo.</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if lastCell.show}
+                                      {lastCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
                                   </span>
-                                </td>
-                                <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if lastCell.show}
-                                    {lastCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if curCell.show}
-                                    {curCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if predCell.show}
-                                    {predCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 px-3 py-2 align-middle">
-                                  <Input
-                                    type="text"
-                                    placeholder="—"
-                                    value={p.accountHints?.[idx] ?? ''}
-                                    oninput={(e) => {
-                                      const id = p.id;
-                                      const i = idx;
-                                      const v = e.currentTarget.value;
-                                      projects = projects.map((x) => {
-                                        if (x.id !== id) return x;
-                                        const hints = [...(x.accountHints ?? [])];
-                                        while (hints.length <= i) hints.push('');
-                                        hints[i] = v;
-                                        return { ...x, accountHints: hints };
-                                      });
-                                    }}
-                                    class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
-                                  />
-                                </td>
+                                </div>
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Current</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if curCell.show}
+                                      {curCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </span>
+                                </div>
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Predicted</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if predCell.show}
+                                      {predCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </span>
+                                </div>
+                              </div>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Account id</span>
+                                <Input
+                                  type="text"
+                                  placeholder="—"
+                                  value={p.accountHints?.[idx] ?? ''}
+                                  oninput={(e) => {
+                                    const id = p.id;
+                                    const i = idx;
+                                    const v = e.currentTarget.value;
+                                    projects = projects.map((x) => {
+                                      if (x.id !== id) return x;
+                                      const hints = [...(x.accountHints ?? [])];
+                                      while (hints.length <= i) hints.push('');
+                                      hints[i] = v;
+                                      return { ...x, accountHints: hints };
+                                    });
+                                  }}
+                                  class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
+                                />
+                              </div>
+                            </div>
+                          {/each}
+                        </div>
+                        <div class="hidden min-w-0 md:block">
+                          <table
+                            class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                          >
+                            <colgroup>
+                              <col class="w-[18%]" />
+                              <col class="w-[22%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[24%]" />
+                            </colgroup>
+                            <thead>
+                              <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                                <th class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                  Account name
+                                </th>
+                                <th
+                                  class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                >
+                                  Email
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Last mo.
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Current
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Predicted
+                                </th>
+                                <th class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                  Account id
+                                </th>
                               </tr>
-                            {/each}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {#each p.accountNames as name, idx (`${p.id}-row-${idx}`)}
+                                {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                                {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                                {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
+                                <tr class="[&_td]:border-b [&_td]:border-border last:[&_td]:border-b-0">
+                                  <td class="min-w-0 px-3 py-2 align-middle">
+                                    <Input
+                                      type="text"
+                                      placeholder="e.g. myapp-int"
+                                      value={name}
+                                      oninput={(e) => {
+                                        const id = p.id;
+                                        const i = idx;
+                                        const v = e.currentTarget.value;
+                                        projects = projects.map((x) => {
+                                          if (x.id !== id) return x;
+                                          const accountNames = x.accountNames.slice();
+                                          accountNames[i] = v;
+                                          return { ...x, accountNames };
+                                        });
+                                      }}
+                                      class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent text-sm"
+                                    />
+                                  </td>
+                                  <td class="min-w-0 px-3 py-2 align-middle">
+                                    <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
+                                      {accountAliasEmail(name, p.slug)}
+                                    </span>
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if lastCell.show}
+                                      {lastCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if curCell.show}
+                                      {curCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 align-middle font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if predCell.show}
+                                      {predCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 px-3 py-2 align-middle">
+                                    <Input
+                                      type="text"
+                                      placeholder="—"
+                                      value={p.accountHints?.[idx] ?? ''}
+                                      oninput={(e) => {
+                                        const id = p.id;
+                                        const i = idx;
+                                        const v = e.currentTarget.value;
+                                        projects = projects.map((x) => {
+                                          if (x.id !== id) return x;
+                                          const hints = [...(x.accountHints ?? [])];
+                                          while (hints.length <= i) hints.push('');
+                                          hints[i] = v;
+                                          return { ...x, accountHints: hints };
+                                        });
+                                      }}
+                                      class="h-9 w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.8rem] tabular-nums"
+                                    />
+                                  </td>
+                                </tr>
+                              {/each}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
                   {:else if editingProjectId === p.id}
@@ -1119,103 +1205,154 @@ const tripleFieldGridClass =
                       </div>
 
                       <div class="min-w-0">
-                        <table
-                          class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
-                        >
-                          <colgroup>
-                            <col class="w-[18%]" />
-                            <col class="w-[22%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[24%]" />
-                          </colgroup>
-                          <thead>
-                            <tr class="border-border border-b-0 bg-muted/20 text-muted-foreground">
-                              <th
-                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
+                        <div class="flex flex-col gap-3 md:hidden">
+                          {#each p.accountNames as name, idx (`${p.id}-edit-acct-m-${idx}`)}
+                            {@const accountIdHint = p.accountHints?.[idx]}
+                            {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                            {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                            {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
+                            <div class={accountMobileCardClass}>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Account name</span>
+                                <span class="text-sm font-medium text-foreground break-words">{name}</span>
+                              </div>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Email</span>
+                                <span class="font-mono text-[0.75rem] text-foreground/90 break-all leading-snug">
+                                  {accountAliasEmail(name, p.slug)}
+                                </span>
+                              </div>
+                              <div
+                                class="grid grid-cols-3 gap-2 rounded-sm border border-border/70 bg-background/40 px-2 py-2"
                               >
-                                Account name
-                              </th>
-                              <th
-                                class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
-                              >
-                                Email
-                              </th>
-                              <th
-                                class="border-border border-b px-2 py-2 text-center font-medium tracking-wide uppercase text-foreground"
-                                colspan="3"
-                              >
-                                Cost
-                              </th>
-                              <th
-                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
-                              >
-                                Account id
-                              </th>
-                            </tr>
-                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Last mo.
-                              </th>
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Current
-                              </th>
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Predicted
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {#each p.accountNames as name, idx (`${p.id}-edit-acct-${idx}`)}
-                              {@const accountIdHint = p.accountHints?.[idx]}
-                              {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
-                              {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
-                              {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
-                              <tr class="border-border border-b last:border-b-0">
-                                <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
-                                  {name}
-                                </td>
-                                <td class="min-w-0 px-3 py-2">
-                                  <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
-                                    {accountAliasEmail(name, p.slug)}
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Last mo.</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if lastCell.show}
+                                      {lastCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
                                   </span>
-                                </td>
-                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if lastCell.show}
-                                    {lastCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if curCell.show}
-                                    {curCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if predCell.show}
-                                    {predCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
+                                </div>
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Current</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if curCell.show}
+                                      {curCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </span>
+                                </div>
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Predicted</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if predCell.show}
+                                      {predCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </span>
+                                </div>
+                              </div>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Account id</span>
+                                <span class="font-mono text-[0.8rem] text-muted-foreground tabular-nums break-all">
                                   {#if (accountIdHint ?? '').trim()}
                                     {accountIdHint}
                                   {:else}
                                     —
                                   {/if}
-                                </td>
+                                </span>
+                              </div>
+                            </div>
+                          {/each}
+                        </div>
+                        <div class="hidden min-w-0 md:block">
+                          <table
+                            class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                          >
+                            <colgroup>
+                              <col class="w-[18%]" />
+                              <col class="w-[22%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[24%]" />
+                            </colgroup>
+                            <thead>
+                              <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                                <th class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                  Account name
+                                </th>
+                                <th
+                                  class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                >
+                                  Email
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Last mo.
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Current
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Predicted
+                                </th>
+                                <th class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                  Account id
+                                </th>
                               </tr>
-                            {/each}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {#each p.accountNames as name, idx (`${p.id}-edit-acct-${idx}`)}
+                                {@const accountIdHint = p.accountHints?.[idx]}
+                                {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                                {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                                {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
+                                <tr class="[&_td]:border-b [&_td]:border-border last:[&_td]:border-b-0">
+                                  <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
+                                    {name}
+                                  </td>
+                                  <td class="min-w-0 px-3 py-2">
+                                    <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
+                                      {accountAliasEmail(name, p.slug)}
+                                    </span>
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if lastCell.show}
+                                      {lastCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if curCell.show}
+                                      {curCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if predCell.show}
+                                      {predCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
+                                    {#if (accountIdHint ?? '').trim()}
+                                      {accountIdHint}
+                                    {:else}
+                                      —
+                                    {/if}
+                                  </td>
+                                </tr>
+                              {/each}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
                   {:else}
@@ -1293,103 +1430,154 @@ const tripleFieldGridClass =
                       </div>
 
                       <div class="min-w-0">
-                        <table
-                          class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
-                        >
-                          <colgroup>
-                            <col class="w-[18%]" />
-                            <col class="w-[22%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[12%]" />
-                            <col class="w-[24%]" />
-                          </colgroup>
-                          <thead>
-                            <tr class="border-border border-b-0 bg-muted/20 text-muted-foreground">
-                              <th
-                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
+                        <div class="flex flex-col gap-3 md:hidden">
+                          {#each p.accountNames as name, idx (`${p.id}-readonly-acct-m-${idx}`)}
+                            {@const accountIdHint = p.accountHints?.[idx]}
+                            {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                            {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                            {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
+                            <div class={accountMobileCardClass}>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Account name</span>
+                                <span class="text-sm font-medium text-foreground break-words">{name}</span>
+                              </div>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Email</span>
+                                <span class="font-mono text-[0.75rem] text-foreground/90 break-all leading-snug">
+                                  {accountAliasEmail(name, p.slug)}
+                                </span>
+                              </div>
+                              <div
+                                class="grid grid-cols-3 gap-2 rounded-sm border border-border/70 bg-background/40 px-2 py-2"
                               >
-                                Account name
-                              </th>
-                              <th
-                                class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
-                              >
-                                Email
-                              </th>
-                              <th
-                                class="border-border border-b px-2 py-2 text-center font-medium tracking-wide uppercase text-foreground"
-                                colspan="3"
-                              >
-                                Cost
-                              </th>
-                              <th
-                                class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
-                                rowspan="2"
-                              >
-                                Account id
-                              </th>
-                            </tr>
-                            <tr class="border-border border-b bg-muted/20 text-muted-foreground">
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Last mo.
-                              </th>
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Current
-                              </th>
-                              <th class="px-2 py-2 text-left font-medium tracking-wide uppercase">
-                                Predicted
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {#each p.accountNames as name, idx (`${p.id}-readonly-acct-${idx}`)}
-                              {@const accountIdHint = p.accountHints?.[idx]}
-                              {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
-                              {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
-                              {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
-                              <tr class="border-border border-b last:border-b-0">
-                                <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
-                                  {name}
-                                </td>
-                                <td class="min-w-0 px-3 py-2">
-                                  <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
-                                    {accountAliasEmail(name, p.slug)}
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Last mo.</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if lastCell.show}
+                                      {lastCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
                                   </span>
-                                </td>
-                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if lastCell.show}
-                                    {lastCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if curCell.show}
-                                    {curCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
-                                  {#if predCell.show}
-                                    {predCell.amount}
-                                  {:else}
-                                    <span class="text-muted-foreground">—</span>
-                                  {/if}
-                                </td>
-                                <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
+                                </div>
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Current</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if curCell.show}
+                                      {curCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </span>
+                                </div>
+                                <div class="min-w-0 flex flex-col gap-0.5">
+                                  <span class={accountMobileFieldLabelClass}>Predicted</span>
+                                  <span class="font-mono text-[0.8rem] text-foreground tabular-nums">
+                                    {#if predCell.show}
+                                      {predCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </span>
+                                </div>
+                              </div>
+                              <div class="flex flex-col gap-1.5">
+                                <span class={accountMobileFieldLabelClass}>Account id</span>
+                                <span class="font-mono text-[0.8rem] text-muted-foreground tabular-nums break-all">
                                   {#if (accountIdHint ?? '').trim()}
                                     {accountIdHint}
                                   {:else}
                                     —
                                   {/if}
-                                </td>
+                                </span>
+                              </div>
+                            </div>
+                          {/each}
+                        </div>
+                        <div class="hidden min-w-0 md:block">
+                          <table
+                            class="w-full min-w-0 table-fixed border-collapse border border-border text-sm [overflow-wrap:anywhere]"
+                          >
+                            <colgroup>
+                              <col class="w-[18%]" />
+                              <col class="w-[22%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[12%]" />
+                              <col class="w-[24%]" />
+                            </colgroup>
+                            <thead>
+                              <tr class="border-border border-b bg-muted/20 text-muted-foreground">
+                                <th class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                  Account name
+                                </th>
+                                <th
+                                  class="min-w-0 border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase"
+                                >
+                                  Email
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Last mo.
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Current
+                                </th>
+                                <th class="border-border border-b px-2 py-2 text-left font-medium tracking-wide uppercase">
+                                  Predicted
+                                </th>
+                                <th class="border-border border-b px-3 py-2 text-left font-medium tracking-wide uppercase">
+                                  Account id
+                                </th>
                               </tr>
-                            {/each}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {#each p.accountNames as name, idx (`${p.id}-readonly-acct-${idx}`)}
+                                {@const accountIdHint = p.accountHints?.[idx]}
+                                {@const lastCell = awsCostCell(p.accountCostsLastMonth?.[idx])}
+                                {@const curCell = awsCostCell(p.accountCostsCurrent?.[idx])}
+                                {@const predCell = awsCostCell(p.accountCostsPredicted?.[idx])}
+                                <tr class="[&_td]:border-b [&_td]:border-border last:[&_td]:border-b-0">
+                                  <td class="min-w-0 break-words px-3 py-2 font-medium text-foreground">
+                                    {name}
+                                  </td>
+                                  <td class="min-w-0 px-3 py-2">
+                                    <span class="block w-full font-mono text-[0.75rem] text-foreground/90 break-all">
+                                      {accountAliasEmail(name, p.slug)}
+                                    </span>
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if lastCell.show}
+                                      {lastCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if curCell.show}
+                                      {curCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 px-2 py-2 font-mono text-[0.75rem] text-foreground tabular-nums">
+                                    {#if predCell.show}
+                                      {predCell.amount}
+                                    {:else}
+                                      <span class="text-muted-foreground">—</span>
+                                    {/if}
+                                  </td>
+                                  <td class="min-w-0 break-all px-3 py-2 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
+                                    {#if (accountIdHint ?? '').trim()}
+                                      {accountIdHint}
+                                    {:else}
+                                      —
+                                    {/if}
+                                  </td>
+                                </tr>
+                              {/each}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
                   {/if}
