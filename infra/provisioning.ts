@@ -398,10 +398,7 @@ export function createProvisioningStateMachine(
     roleArn: sfnRole.arn,
     definition,
     type: 'STANDARD',
-    loggingConfiguration: {
-      includeExecutionData: false,
-      level: 'ERROR',
-    },
+    // Logging requires `destinations` with a CloudWatch log group ARN; omit to use default (no CW logs).
   });
 
   return stateMachine;

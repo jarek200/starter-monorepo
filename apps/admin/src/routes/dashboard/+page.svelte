@@ -1,14 +1,14 @@
 <script lang="ts">
+import { Accordion } from 'bits-ui';
 import { tick } from 'svelte';
 import { browser } from '$app/environment';
-import { Accordion } from 'bits-ui';
+import { isLiveMode } from '$lib/amplify';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
-import { isLiveMode } from '$lib/amplify';
-import { auth } from '$lib/stores/auth';
-import * as api from '$lib/services/graphql';
 import type { Project as ApiProject } from '$lib/services/graphql';
+import * as api from '$lib/services/graphql';
+import { auth } from '$lib/stores/auth';
 
 type ProjectRow = {
   id: string;
@@ -51,19 +51,26 @@ type ProjectProvisioning = Record<ProvisioningStepKey, ProvisioningStepState> & 
 
 const liveMode = browser && isLiveMode();
 
+/** Same criteria as `isLiveMode()` but safe on the server — avoids SSR/hydration seed-row flash. */
+const hasLiveBackend = !!(
+  import.meta.env.VITE_USER_POOL_ID &&
+  import.meta.env.VITE_USER_POOL_CLIENT_ID &&
+  import.meta.env.VITE_GRAPHQL_ENDPOINT
+);
+
 /** Map an API Project → the UI's ProjectRow shape */
 function apiProjectToRow(p: ApiProject): ProjectRow {
   const phase = p.provisioningPhase;
   const billing: ProvisioningStepState =
     phase === 'BILLING' ? 'running' : phase === 'DRAFT' ? 'pending' : 'done';
   const accounts: ProvisioningStepState =
-    phase === 'ACCOUNTS' ? 'running'
-    : ['BILLING', 'DRAFT'].includes(phase) ? 'pending'
-    : 'done';
+    phase === 'ACCOUNTS' ? 'running' : ['BILLING', 'DRAFT'].includes(phase) ? 'pending' : 'done';
   const github: ProvisioningStepState =
-    phase === 'GITHUB' ? 'running'
-    : ['BILLING', 'ACCOUNTS', 'DRAFT'].includes(phase) ? 'pending'
-    : 'done';
+    phase === 'GITHUB'
+      ? 'running'
+      : ['BILLING', 'ACCOUNTS', 'DRAFT'].includes(phase)
+        ? 'pending'
+        : 'done';
 
   const isProvisioning = ['BILLING', 'ACCOUNTS', 'GITHUB'].includes(phase);
   const provisioning: ProjectProvisioning | null | undefined = isProvisioning
@@ -99,6 +106,8 @@ async function loadProjectsFromApi() {
     projects = apiProjects.map(apiProjectToRow);
   } catch (err) {
     console.error('Failed to load projects:', err);
+  } finally {
+    apiProjectsLoading = false;
   }
 }
 
@@ -137,39 +146,32 @@ function clampPct(n: number): number {
 
 /** Account IDs stay hidden until the provisioning “accounts” step completes */
 function accountIdsPendingProvisioning(
-  provisioning: ProjectProvisioning | null | undefined,
+  provisioning: ProjectProvisioning | null | undefined
 ): boolean {
   return provisioning != null && provisioning.accounts !== 'done';
 }
 
 /** Spend columns until billing is linked and accounts exist for CUR-style data */
-function costsPendingProvisioning(
-  provisioning: ProjectProvisioning | null | undefined,
-): boolean {
+function costsPendingProvisioning(provisioning: ProjectProvisioning | null | undefined): boolean {
   return (
-    provisioning != null &&
-    (provisioning.billing !== 'done' || provisioning.accounts !== 'done')
+    provisioning != null && (provisioning.billing !== 'done' || provisioning.accounts !== 'done')
   );
 }
 
 /** IAM / org console entry until target accounts are members */
 function awsAssignPendingProvisioning(
-  provisioning: ProjectProvisioning | null | undefined,
+  provisioning: ProjectProvisioning | null | undefined
 ): boolean {
   return provisioning != null && provisioning.accounts !== 'done';
 }
 
 /** Repo, OIDC, or deploy hooks until the GitHub step completes */
-function githubIntegrationPending(
-  provisioning: ProjectProvisioning | null | undefined,
-): boolean {
+function githubIntegrationPending(provisioning: ProjectProvisioning | null | undefined): boolean {
   return provisioning != null && provisioning.github !== 'done';
 }
 
 /** Marketing / app URL often not routable until later in the pipeline */
-function websitePendingProvisioning(
-  provisioning: ProjectProvisioning | null | undefined,
-): boolean {
+function websitePendingProvisioning(provisioning: ProjectProvisioning | null | undefined): boolean {
   return provisioning != null && provisioning.github !== 'done';
 }
 
@@ -177,7 +179,7 @@ function animateProvisioningProgress(
   projectId: string,
   fromPct: number,
   toPct: number,
-  durationMs: number,
+  durationMs: number
 ): Promise<void> {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -287,7 +289,7 @@ function shortDate(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
-let projects = $state<ProjectRow[]>([
+const DEMO_SEED_PROJECTS: ProjectRow[] = [
   {
     id: 'seed-acme',
     name: 'Acme platform',
@@ -321,7 +323,12 @@ let projects = $state<ProjectRow[]>([
     githubUrl: 'https://github.com/acme-corp/billing-api',
     awsSignInUrl: 'https://signin.aws.amazon.com/console',
   },
-]);
+];
+
+let projects = $state<ProjectRow[]>(hasLiveBackend ? [] : DEMO_SEED_PROJECTS);
+
+/** True until the first `listProjects` finishes (live backend only). */
+let apiProjectsLoading = $state(hasLiveBackend);
 
 const DEFAULT_GITHUB_URL = 'https://github.com/';
 const DEFAULT_AWS_SIGNIN_URL = 'https://signin.aws.amazon.com/console';
@@ -374,7 +381,15 @@ const RANDOM_PROJECT_ADJECTIVES = [
   'lumen',
   'north',
 ] as const;
-const RANDOM_PROJECT_NOUNS = ['forge', 'ledger', 'atlas', 'beacon', 'harbor', 'relay', 'vault'] as const;
+const RANDOM_PROJECT_NOUNS = [
+  'forge',
+  'ledger',
+  'atlas',
+  'beacon',
+  'harbor',
+  'relay',
+  'vault',
+] as const;
 const RANDOM_TEMPLATE_LABELS = [
   'SST monorepo starter',
   'SvelteKit + AppSync stack',
@@ -458,7 +473,10 @@ function setAccountCount(projectId: string, count: number) {
   });
 }
 
-function onProjectAccountCountInput(projectId: string, e: Event & { currentTarget: HTMLInputElement }) {
+function onProjectAccountCountInput(
+  projectId: string,
+  e: Event & { currentTarget: HTMLInputElement }
+) {
   const v = Number.parseInt(e.currentTarget.value, 10);
   setAccountCount(projectId, Number.isFinite(v) ? v : MIN_ACCOUNTS);
 }
@@ -544,7 +562,12 @@ async function saveDraftProjectApi(id: string) {
   if (!row) return;
 
   // Immediately show provisioning bar while the API call goes out
-  const initial: ProjectProvisioning = { billing: 'running', accounts: 'pending', github: 'pending', progress: 0 };
+  const initial: ProjectProvisioning = {
+    billing: 'running',
+    accounts: 'pending',
+    github: 'pending',
+    progress: 0,
+  };
   patchProject(id, { isDraft: false, provisioning: initial });
 
   try {
@@ -629,13 +652,15 @@ function saveEditingProject() {
   if (liveMode && id) {
     const row = projects.find((p) => p.id === id);
     if (row) {
-      api.updateProject(id, {
-        name: row.name,
-        description: row.detailBlurb || undefined,
-        websiteUrl: row.websiteUrl || undefined,
-        awsSignInUrl: row.awsSignInUrl || undefined,
-        githubUrl: row.githubUrl || undefined,
-      }).catch((err) => console.warn('updateProject failed:', err));
+      api
+        .updateProject(id, {
+          name: row.name,
+          description: row.detailBlurb || undefined,
+          websiteUrl: row.websiteUrl || undefined,
+          awsSignInUrl: row.awsSignInUrl || undefined,
+          githubUrl: row.githubUrl || undefined,
+        })
+        .catch((err) => console.warn('updateProject failed:', err));
     }
   }
 }
@@ -919,7 +944,15 @@ const accountMobileFieldLabelClass =
     </div>
 
     <div class="mt-8 md:mt-10">
-      {#if projects.length === 0}
+      {#if hasLiveBackend && apiProjectsLoading}
+        <p
+          class="border-border border border-dashed px-4 py-8 text-center text-muted-foreground text-sm"
+          role="status"
+          aria-live="polite"
+        >
+          Loading projects…
+        </p>
+      {:else if projects.length === 0}
         <p class="border-border border border-dashed px-4 py-8 text-center text-muted-foreground text-sm">
           No projects yet — use <span class="text-foreground">Add</span> to create one.
         </p>
@@ -2181,8 +2214,6 @@ const accountMobileFieldLabelClass =
         </div>
       {/if}
     </div>
-
-    <p class="mt-12 text-center text-[0.7rem] text-neutral-600">Design preview — stored in-page only</p>
   </div>
 
   {#if showScrollDownChevron}

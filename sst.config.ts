@@ -14,11 +14,14 @@
  * You can also override per-stage profiles via env vars without touching
  * this file:
  *   AWS_PROFILE_DEV=my-dev-profile pnpm exec sst deploy --stage dev
+ *
+ * Default `dev` uses profile **default** — typical when keys live only in
+ * ~/.aws/credentials under [default]. Use AWS_PROFILE_DEV=dev (etc.) for named profiles.
  */
 const STAGE_PROFILES: Record<string, string> = {
-  dev: process.env.AWS_PROFILE_DEV ?? 'acme-dev',
-  stage: process.env.AWS_PROFILE_STAGE ?? 'acme-stage',
-  prod: process.env.AWS_PROFILE_PROD ?? 'acme-prod',
+  dev: process.env.AWS_PROFILE_DEV ?? 'default',
+  stage: process.env.AWS_PROFILE_STAGE ?? 'stage',
+  prod: process.env.AWS_PROFILE_PROD ?? 'prod',
 };
 
 export default $config({

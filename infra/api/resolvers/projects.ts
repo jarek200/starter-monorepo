@@ -10,25 +10,30 @@ export function addProjectResolvers(
   api.addResolver('Mutation createProject', {
     dataSource: lambdaDataSource.name,
     code: `
+      import { util } from '@aws-appsync/utils';
+
       export function request(ctx) {
         return {
           operation: 'Invoke',
           payload: {
-            field: 'createProject',
-            arguments: ctx.args,
+            arguments: ctx.arguments,
             identity: ctx.identity,
+            info: ctx.info,
           },
         };
       }
 
       export function response(ctx) {
-        if (ctx.error) {
-          const { util } = require('@aws-appsync/utils');
-          return util.error(ctx.error.message, ctx.error.type);
-        }
+        if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
         return ctx.result;
       }
     `,
+    // AppSync allows only one resolver per field; default replace order can try Create before Delete.
+    transform: {
+      resolver: (_args, opts) => {
+        opts.deleteBeforeReplace = true;
+      },
+    },
   });
 
   // Query: listProjects — query by userId via GSI1

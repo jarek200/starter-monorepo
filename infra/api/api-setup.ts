@@ -23,8 +23,9 @@ export function createDataSource(
   table: ReturnType<typeof import('../storage').createStorage>['table']
 ) {
   // Link DynamoDB to AppSync as data source
+  // Avoid name `dynamodb` — AppSync/SST may already expose that name and creation fails with "already exists".
   const dynamoDataSource = api.addDataSource({
-    name: 'dynamodb',
+    name: 'AppTableDynamo',
     dynamodb: table.arn,
     transform: {
       serviceRole: {

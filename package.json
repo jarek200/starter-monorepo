@@ -5,7 +5,8 @@
   "scripts": {
     "clean": "pnpm -r exec -- rm -rf node_modules .turbo 2>/dev/null || true && rm -rf node_modules .turbo && rm -f pnpm-lock.yaml",
     "build": "turbo run build",
-    "dev": "pnpm sst dev",
+    "dev": "pnpm sst dev --mode basic",
+    "dev:tui": "pnpm sst dev",
     "dev:local": "turbo run dev --filter=@sst-monorepo/web",
     "dev:admin": "pnpm --filter @sst-monorepo/admin dev",
     "deploy:dev": "pnpm sst deploy --stage dev",

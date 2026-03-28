@@ -8,6 +8,9 @@ export function createAuth(
     usernames: ['email'],
     transform: {
       userPool: (args) => {
+        args.adminCreateUserConfig = {
+          allowAdminCreateUserOnly: true,
+        };
         args.lambdaConfig = {
           postConfirmation: createUserProfileFunction.arn,
         };
