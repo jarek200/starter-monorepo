@@ -53,9 +53,6 @@ export function createProvisioningLambdas(
     ...LAMBDA_DEFAULTS,
     timeout: '300 seconds',
     handler: 'packages/functions/src/provisioning/bootstrap-account.handler',
-    environment: {
-      MANAGEMENT_ACCOUNT_ID: aws.getCallerIdentityOutput({}).accountId,
-    },
     permissions: [
       {
         actions: ['sts:AssumeRole'],

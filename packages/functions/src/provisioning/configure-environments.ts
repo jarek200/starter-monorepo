@@ -9,9 +9,9 @@
  * the deploy workflow listens for.
  */
 
-import * as crypto from 'node:crypto';
-import { createPublicKey, createSign } from 'node:crypto';
+import { createSign } from 'node:crypto';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import sodium from 'libsodium-wrappers';
 
 const secretsClient = new SecretsManagerClient({});
 
@@ -100,25 +100,20 @@ async function githubRequest(
   return response.json();
 }
 
-/**
- * Encrypt a secret value using the repo's public key (libsodium-wasm-free approach).
- * GitHub requires secrets to be encrypted with the repo's public key using
- * tweetnacl/libsodium's sealed box. We use the native Node.js crypto API
- * with the @octokit/action or tweetnacl pattern.
- *
- * For production use, install `tweetnacl` + `tweetnacl-util` in the Lambda layer.
- * This implementation uses a simplified approach with the @aws-sdk/util-base64.
- */
-async function encryptSecret(publicKeyBase64: string, secretValue: string): Promise<string> {
-  // Import tweetnacl dynamically — ensure it's in the Lambda bundle
-  // biome-ignore lint/suspicious/noExplicitAny: dynamic import
-  const nacl = await import('tweetnacl' as any);
-  const { encodeBase64, decodeBase64, decodeUTF8 } = await import('tweetnacl-util' as any);
+let sodiumReady: Promise<void> | null = null;
 
-  const publicKeyBytes = decodeBase64(publicKeyBase64);
-  const secretBytes = decodeUTF8(secretValue);
-  const encrypted = nacl.box.seal(secretBytes, publicKeyBytes);
-  return encodeBase64(encrypted);
+async function ensureSodium(): Promise<void> {
+  if (!sodiumReady) sodiumReady = sodium.ready;
+  await sodiumReady;
+}
+
+/** GitHub Actions secrets: Libsodium sealed box (`crypto_box_seal`) per GitHub REST API. */
+async function encryptSecret(publicKeyBase64: string, secretValue: string): Promise<string> {
+  await ensureSodium();
+  const publicKey = sodium.from_base64(publicKeyBase64, sodium.base64_variants.ORIGINAL);
+  const message = sodium.from_string(secretValue);
+  const sealed = sodium.crypto_box_seal(message, publicKey);
+  return sodium.to_base64(sealed, sodium.base64_variants.ORIGINAL);
 }
 
 async function setEnvironmentSecret(
@@ -151,10 +146,6 @@ export const handler = async (event: ConfigureEnvironmentsInput): Promise<void> 
   console.log(`Configuring GitHub environments for ${repoFullName}`);
 
   const token = await getGitHubToken();
-
-  // Get repo ID (needed for environment creation)
-  const repo = (await githubRequest(token, 'GET', `/repos/${repoFullName}`)) as { id: number };
-  const repoId = repo.id;
 
   for (const account of accounts) {
     const envKey = account.envKey;

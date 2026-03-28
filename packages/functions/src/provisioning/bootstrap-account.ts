@@ -21,7 +21,6 @@ import {
 } from '@aws-sdk/client-iam';
 import { AssumeRoleCommand, STSClient } from '@aws-sdk/client-sts';
 
-const MANAGEMENT_ACCOUNT_ID = process.env.MANAGEMENT_ACCOUNT_ID!;
 const GITHUB_OIDC_URL = 'https://token.actions.githubusercontent.com';
 const GITHUB_OIDC_THUMBPRINT = '6938fd4d98bab03faadb97b34396831e3780aea1';
 const GITHUB_OIDC_AUDIENCE = 'sts.amazonaws.com';
@@ -75,8 +74,9 @@ async function assumeAccountRole(accountId: string): Promise<IAMClient> {
   });
 }
 
-async function ensureOidcProvider(iamClient: IAMClient): Promise<void> {
-  const providerArn = `arn:aws:iam::${MANAGEMENT_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com`;
+/** OIDC provider for GitHub Actions lives in the member account (same account as the deploy role). */
+async function ensureOidcProvider(iamClient: IAMClient, memberAccountId: string): Promise<void> {
+  const providerArn = `arn:aws:iam::${memberAccountId}:oidc-provider/token.actions.githubusercontent.com`;
 
   try {
     await iamClient.send(
@@ -170,7 +170,7 @@ async function ensureDeployRole(
 export const handler = async (event: BootstrapAccountInput): Promise<BootstrapAccountOutput> => {
   const { name, email, accountId } = event;
   const projectSlug = event.projectSlug ?? 'project';
-  const githubOrg = event.githubOrg ?? 'org';
+  const githubOrg = event.githubOrg?.trim() || 'org';
 
   const envKey = envKeyFromAccountName(name);
   const roleName = `GitHubActions-${envKey}`;
@@ -178,7 +178,7 @@ export const handler = async (event: BootstrapAccountInput): Promise<BootstrapAc
   console.log(`Bootstrapping account ${accountId} (${name}), envKey=${envKey}`);
 
   const iamClient = await assumeAccountRole(accountId);
-  await ensureOidcProvider(iamClient);
+  await ensureOidcProvider(iamClient, accountId);
   const roleArn = await ensureDeployRole(
     iamClient,
     accountId,

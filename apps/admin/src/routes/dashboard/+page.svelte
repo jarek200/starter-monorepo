@@ -17,6 +17,8 @@ type ProjectRow = {
   accountNames: string[];
   createdLabel: string;
   templateLabel: string;
+  /** GitHub org for new repo + OIDC trust; optional if template is owner/repo */
+  githubOrg?: string;
   detailBlurb: string;
   /** App / marketing site */
   websiteUrl: string;
@@ -76,6 +78,7 @@ function apiProjectToRow(p: ApiProject): ProjectRow {
     accountNames: p.accounts.map((a) => a.name),
     createdLabel: shortDate(new Date(p.createdAt)),
     templateLabel: p.templateRepo ?? '',
+    githubOrg: p.githubOrg ?? '',
     detailBlurb: p.description ?? '',
     websiteUrl: p.websiteUrl ?? '',
     githubUrl: p.githubUrl ?? '',
@@ -254,15 +257,28 @@ function slugify(s: string) {
     .replace(/^-|-$/g, '');
 }
 
-/** Plus-address: jwyprzal+{slug}-{account}@gmail.com (slug normalized like new-project) */
-const ACCOUNT_EMAIL_LOCAL = 'jwyprzal';
-const ACCOUNT_EMAIL_DOMAIN = 'gmail.com';
+/** Plus-address local+tag@domain — override with VITE_ACCOUNT_EMAIL_LOCAL / VITE_ACCOUNT_EMAIL_DOMAIN */
+const ACCOUNT_EMAIL_LOCAL = import.meta.env.VITE_ACCOUNT_EMAIL_LOCAL || 'jwyprzal';
+const ACCOUNT_EMAIL_DOMAIN = import.meta.env.VITE_ACCOUNT_EMAIL_DOMAIN || 'gmail.com';
 
 function accountAliasEmail(accountName: string, projectSlug: string) {
   const slugPart = slugify(projectSlug) || 'project';
   const accountPart = slugify(accountName) || 'account';
   const tag = `${slugPart}-${accountPart}`;
   return `${ACCOUNT_EMAIL_LOCAL}+${tag}@${ACCOUNT_EMAIL_DOMAIN}`;
+}
+
+/** Org for API: explicit field, else owner segment of template `owner/repo`. */
+function githubOrgForApi(row: ProjectRow): string | undefined {
+  const explicit = row.githubOrg?.trim();
+  if (explicit) return explicit;
+  const t = row.templateLabel.trim();
+  const i = t.indexOf('/');
+  if (i > 0) {
+    const owner = t.slice(0, i).trim();
+    if (owner) return owner;
+  }
+  return undefined;
 }
 
 /** Short month, zero-padded day, and year for the Created column */
@@ -332,6 +348,7 @@ function addProject() {
       accountNames: ['int', 'stage', 'prod'],
       createdLabel: shortDate(new Date()),
       templateLabel: '',
+      githubOrg: '',
       detailBlurb: '',
       accountHints: ['', '', ''],
       accountCostsLastMonth: ['', '', ''],
@@ -535,7 +552,8 @@ async function saveDraftProjectApi(id: string) {
       slug: row.slug,
       description: row.detailBlurb || undefined,
       templateRepo: row.templateLabel || undefined,
-      accounts: row.accountNames.map((name, i) => ({
+      githubOrg: githubOrgForApi(row),
+      accounts: row.accountNames.map((name) => ({
         name,
         email: accountAliasEmail(name, row.slug),
       })),
@@ -574,6 +592,7 @@ function cloneProjectRow(row: ProjectRow): ProjectRow {
     accountNames: [...row.accountNames],
     createdLabel: row.createdLabel,
     templateLabel: row.templateLabel,
+    githubOrg: row.githubOrg,
     detailBlurb: row.detailBlurb,
     websiteUrl: row.websiteUrl,
     githubUrl: row.githubUrl,
@@ -729,6 +748,10 @@ const headerLeftGridClass =
 /** Three fields in a row: 1 col, 2 from sm, 3 from lg (name block or URL block) */
 const tripleFieldGridClass =
   'grid min-w-0 grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2 lg:grid-cols-3';
+
+/** Draft header: name, slug, template, GitHub org */
+const draftTopGridClass =
+  'grid min-w-0 grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2 lg:grid-cols-4';
 
 /** Stacked account row on small screens (AWS accounts table) */
 const accountMobileCardClass =
@@ -1341,7 +1364,7 @@ const accountMobileFieldLabelClass =
                   {#if p.isDraft}
                     <div class="flex flex-col gap-6 pt-2">
                       <div class="grid gap-4 sm:grid-cols-2">
-                        <div class={tripleFieldGridClass}>
+                        <div class={draftTopGridClass}>
                           <div class="flex min-w-0 flex-col gap-2">
                             <Label for={`${p.id}-name`} class="text-muted-foreground text-xs font-normal">
                               Project name
@@ -1369,15 +1392,29 @@ const accountMobileFieldLabelClass =
                           </div>
                           <div class="flex min-w-0 flex-col gap-2">
                             <Label for={`${p.id}-template`} class="text-muted-foreground text-xs font-normal">
-                              Template
+                              Template repo
                             </Label>
                             <Input
                               id={`${p.id}-template`}
                               type="text"
-                              placeholder="e.g. SST monorepo starter"
+                              placeholder="owner/repo (template to generate from)"
                               value={p.templateLabel}
                               oninput={(e) => patchProject(p.id, { templateLabel: e.currentTarget.value })}
-                              class="w-full min-w-0 rounded-sm border-border bg-transparent"
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
+                            />
+                          </div>
+                          <div class="flex min-w-0 flex-col gap-2">
+                            <Label for={`${p.id}-github-org`} class="text-muted-foreground text-xs font-normal">
+                              GitHub org
+                            </Label>
+                            <Input
+                              id={`${p.id}-github-org`}
+                              type="text"
+                              placeholder="defaults from template owner"
+                              value={p.githubOrg ?? ''}
+                              oninput={(e) =>
+                                patchProject(p.id, { githubOrg: e.currentTarget.value })}
+                              class="w-full min-w-0 rounded-sm border-border bg-transparent font-mono text-[0.85rem]"
                             />
                           </div>
                         </div>
