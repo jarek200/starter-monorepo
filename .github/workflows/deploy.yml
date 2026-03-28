@@ -46,7 +46,7 @@ jobs:
       id-token: write   # required for OIDC
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -84,7 +84,7 @@ jobs:
           echo "$labels" | grep -q "deploy:dev" \
             || (echo "ERROR: 'deploy:dev' label must be present before promoting to stage." && exit 1)
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -127,7 +127,7 @@ jobs:
           echo "$labels" | grep -q "deploy:stage" \
             || (echo "ERROR: 'deploy:stage' label must be present before promoting to prod." && exit 1)
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
