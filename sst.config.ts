@@ -53,79 +53,20 @@ export default $config({
     };
   },
   async run() {
-    // Dynamic imports (required by SST)
     const { createStorage } = await import('./infra/storage');
     const { createUserProfile } = await import('./infra/functions');
     const { createAuth } = await import('./infra/auth');
-    const { createApi, createDataSource, createLambdaDataSource } = await import('./infra/api/api-setup');
+    const { createApi, createDataSource } = await import('./infra/api/api-setup');
     const { addAllResolvers } = await import('./infra/api/resolvers');
     const { stageConfig } = await import('./infra/stage-config');
-    const {
-      createProvisioningLambdas,
-      createProjectLambda,
-      createProvisioningStateMachine,
-    } = await import('./infra/provisioning');
-    const { createGithubAppSsmParameters } = await import('./infra/github-app-params');
 
-    // Storage: DynamoDB table
     const { table } = createStorage();
-
-    // Functions: Lambda functions
     const createUserProfileFunction = createUserProfile(table);
-
-    // Auth: Cognito User Pool
     const { auth, authClient } = createAuth(createUserProfileFunction);
-
-    // API: AppSync GraphQL API
     const api = createApi(auth);
-
-    // Data source: DynamoDB
     const dynamoDataSource = createDataSource(api, table);
 
-    // ─── Provisioning infrastructure ────────────────────────────────────────
-    // GitHub App private key is stored in Secrets Manager.
-    // The ARN is injected via env var at deploy time; create the secret
-    // manually in the management account before first deploy:
-    //   aws secretsmanager create-secret --name /admin-factory/github-private-key \
-    //     --secret-string "$(cat your-app.private-key.pem)"
-    const githubPrivateKeySecretArn =
-      process.env.GITHUB_PRIVATE_KEY_SECRET_ARN ??
-      $interpolate`arn:aws:secretsmanager:${aws.getRegionOutput().name}:${aws.getCallerIdentityOutput({}).accountId}:secret:/admin-factory/github-private-key`;
-    const githubPrivateKeySecretArnWildcard = $interpolate`${githubPrivateKeySecretArn}-*`;
-
-    const { githubAppIdParam, githubInstallationIdParam } = createGithubAppSsmParameters();
-    const githubIds = {
-      appId: githubAppIdParam.value,
-      installationId: githubInstallationIdParam.value,
-    };
-
-    // Provisioning task Lambdas (called by Step Functions)
-    const provisioningFns = createProvisioningLambdas(
-      table,
-      githubPrivateKeySecretArn,
-      githubPrivateKeySecretArnWildcard,
-      githubIds
-    );
-
-    // Step Functions state machine
-    const stateMachine = createProvisioningStateMachine(provisioningFns);
-
-    // AppSync Lambda: createProject + listGithubReposForTemplate (same function / deployment package)
-    const createProjectFn = createProjectLambda(
-      table,
-      stateMachine.arn,
-      githubPrivateKeySecretArn,
-      githubPrivateKeySecretArnWildcard,
-      githubAppIdParam.value,
-      githubInstallationIdParam.value
-    );
-
-    const lambdaDataSource = createLambdaDataSource(api, createProjectFn.arn);
-
-    // Resolvers: Add all resolvers (user + project)
-    addAllResolvers(api, dynamoDataSource, lambdaDataSource, String(table.name));
-
-    // ─── Admin SvelteKit app ─────────────────────────────────────────────────
+    addAllResolvers(api, dynamoDataSource, String(table.name));
 
     const svelteKitTransform = {
       server(server: Record<string, unknown>) {
@@ -152,9 +93,8 @@ export default $config({
       VITE_STAGE: $app.stage,
     };
 
-    // Admin control plane (only frontend)
-    const admin = new sst.aws.SvelteKit('Admin', {
-      path: 'apps/admin',
+    const web = new sst.aws.SvelteKit('Web', {
+      path: 'apps/web',
       link: [table, auth, authClient, api],
       transform: svelteKitTransform,
       environment: sharedEnv,
@@ -165,8 +105,7 @@ export default $config({
       userPoolId: auth.id,
       userPoolClientId: authClient.id,
       apiUrl: api.url,
-      adminUrl: admin.url,
-      stateMachineArn: stateMachine.arn,
+      webUrl: web.url,
     };
   },
 });

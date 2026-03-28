@@ -15,87 +15,10 @@ input UpdateUserInput {
   avatar: String
 }
 
-# ─── Projects ───────────────────────────────────────────────────────────────
-
-enum ProvisioningPhase {
-  DRAFT
-  BILLING
-  ACCOUNTS
-  GITHUB
-  DONE
-  FAILED
-}
-
-type ProjectAccount {
-  name: String!
-  email: String!
-  accountId: String
-  roleArn: String
-  awsSignInUrl: String
-}
-
-input ProjectAccountInput {
-  name: String!
-  email: String!
-}
-
-type Project {
-  id: ID!
-  userId: String!
-  name: String!
-  slug: String!
-  description: String
-  templateRepo: String
-  githubOrg: String
-  accounts: [ProjectAccount!]!
-  provisioningPhase: ProvisioningPhase!
-  provisioningProgress: Int
-  executionArn: String
-  githubUrl: String
-  websiteUrl: String
-  awsSignInUrl: String
-  error: String
-  createdAt: String!
-  updatedAt: String!
-}
-
-input CreateProjectInput {
-  name: String!
-  slug: String!
-  description: String
-  templateRepo: String
-  githubOrg: String
-  accounts: [ProjectAccountInput!]!
-  websiteUrl: String
-  awsSignInUrl: String
-}
-
-input UpdateProjectInput {
-  name: String
-  description: String
-  websiteUrl: String
-  awsSignInUrl: String
-  githubUrl: String
-}
-
-type GithubRepoOption {
-  fullName: String!
-  name: String!
-  isTemplate: Boolean!
-  private: Boolean!
-}
-
 type Query {
   getMyProfile: User
-  listProjects: [Project!]!
-  getProject(id: ID!): Project
-  """Repositories visible to the configured GitHub App installation (for template selection)."""
-  listGithubReposForTemplate: [GithubRepoOption!]!
 }
 
 type Mutation {
   updateUserProfile(input: UpdateUserInput!): User
-  createProject(input: CreateProjectInput!): Project!
-  updateProject(id: ID!, input: UpdateProjectInput!): Project!
-  deleteProject(id: ID!): Boolean!
 }

@@ -15,7 +15,7 @@ A modern, production-ready platform template for building full-stack serverless 
 
 ```
 pnpm workspace (root)
-├── apps/admin        SvelteKit admin app (SST SvelteKit component)
+├── apps/web          SvelteKit web app — landing, login, dashboard (SST SvelteKit component)
 ├── packages/         Shared code (core, graphql, functions)
 ├── infra/            SST infrastructure modules (AppSync, Cognito, DynamoDB)
 └── sst.config.ts     SST v4 config — stage-aware, multi-account
@@ -127,15 +127,16 @@ After creating a repository from this template, do these before shipping:
 ```
 sst-monorepo/
 ├── apps/
-│   └── admin/                    SvelteKit admin UI
+│   └── web/                      SvelteKit UI
 │       ├── src/
 │       │   ├── lib/
 │       │   │   ├── components/ui/  UI components
 │       │   │   ├── services/       GraphQL service
 │       │   │   └── stores/         Auth store
 │       │   └── routes/
-│       │       ├── +page.svelte    Sign-in
-│       │       └── dashboard/      Main admin UI
+│       │       ├── +page.svelte    Landing
+│       │       ├── login/          Sign in / sign up
+│       │       └── (protected)/dashboard/  Post-login dashboard
 │       └── package.json
 ├── packages/
 │   ├── core/                     Shared types and utilities
@@ -250,7 +251,7 @@ import type { User, UpdateUserInput } from '@sst-monorepo/graphql';
 
 `pnpm dev` (SST dev mode) injects all variables automatically — no `.env` needed.
 
-For local-only admin development (`pnpm dev:local`), set `VITE_*` variables the same way as in
+For local-only frontend development (`pnpm dev:local`), set `VITE_*` variables the same way as in
 `sst.config.ts`’s `sharedEnv` (or use `pnpm dev` so SST injects them).
 
 ## Database schema (DynamoDB — single-table design)
@@ -270,7 +271,7 @@ Entity patterns:
 1. Update `packages/graphql/schema.graphql`
 2. Run `pnpm codegen`
 3. Add resolver in `infra/api/resolvers/`
-4. Add service method in `apps/admin/src/lib/services/graphql.ts`
+4. Add service method in `apps/web/src/lib/services/graphql.ts`
 
 ### New Lambda function
 
