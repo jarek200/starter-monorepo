@@ -18,6 +18,7 @@ pnpm workspace (root)
 ├── apps/web          SvelteKit web app — landing, login, dashboard (SST SvelteKit component)
 ├── packages/         Shared code (core, graphql, functions)
 ├── infra/            SST infrastructure modules (AppSync, Cognito, DynamoDB)
+├── platform/webiny   Optional Webiny CMS — Yarn toolchain; not part of pnpm (see platform/webiny/README.md)
 └── sst.config.ts     SST v4 config — stage-aware, multi-account
 ```
 
