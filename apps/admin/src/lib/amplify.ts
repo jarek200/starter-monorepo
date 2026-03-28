@@ -1,5 +1,3 @@
-import { Amplify } from 'aws-amplify';
-
 let isConfigured = false;
 let initPromise: Promise<boolean> | null = null;
 
@@ -16,6 +14,8 @@ export async function ensureAmplifyConfigured(): Promise<boolean> {
 
 async function initializeAmplify(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
+
+  const { Amplify } = await import('aws-amplify');
 
   interface WindowWithEnv extends Window {
     ENV?: Record<string, string>;

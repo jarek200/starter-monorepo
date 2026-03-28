@@ -4,6 +4,13 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
+  /** pnpm + Amplify: SSR must resolve the package graph (conditional exports). */
+  ssr: {
+    noExternal: ['aws-amplify', /@aws-amplify\/.*/],
+  },
+  optimizeDeps: {
+    include: ['aws-amplify', 'aws-amplify/api'],
+  },
   server: {
     /**
      * Listen on all local addresses. Default can bind to IPv6-only (::1), so

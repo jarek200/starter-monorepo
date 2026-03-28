@@ -2,6 +2,7 @@ import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import { signOut } from 'aws-amplify/auth';
+import { resetClient } from '$lib/services/graphql';
 
 export interface AdminUser {
   id: string;
@@ -30,6 +31,7 @@ const createAuthStore = () => {
     logout: async () => {
       set({ user: null, isAuthenticated: false, isLoading: false });
       if (browser) {
+        resetClient();
         try {
           await signOut({ global: true });
         } catch {

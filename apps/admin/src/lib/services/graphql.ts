@@ -6,7 +6,6 @@
  * In local/mock mode the dashboard uses in-memory state directly.
  */
 
-import { generateClient } from 'aws-amplify/api';
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { ensureAmplifyConfigured } from '../amplify';
 
@@ -16,6 +15,7 @@ let _client: any = null;
 async function getClient() {
   if (_client) return _client;
   await ensureAmplifyConfigured();
+  const { generateClient } = await import('aws-amplify/api');
   _client = generateClient({ authMode: 'userPool' });
   return _client;
 }
