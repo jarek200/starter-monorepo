@@ -1,0 +1,141 @@
+name: Deploy
+
+# Triggered whenever a label is added to a PR.
+# Each label routes to one environment job; only the matching job runs.
+#
+# Promotion flow (add labels in order):
+#   1. deploy:dev   --> deploys SST to the dev AWS account
+#   2. deploy:stage --> deploys SST to the stage AWS account
+#                       (blocked unless deploy:dev label is also present)
+#   3. deploy:prod  --> deploys SST to the prod AWS account
+#                       (blocked unless both deploy:dev and deploy:stage are present)
+#                       (also gated by GitHub Environment required reviewers)
+#
+# Setup required (one-time, outside this repo):
+#   1. Create GitHub Environments: dev, stage, prod
+#      - Set "Required reviewers" on prod
+#   2. Add AWS_ROLE_ARN secret to each Environment
+#      (arn:aws:iam::<account-id>:role/GHActions-<Env>)
+#   3. Create IAM OIDC provider + role in each AWS account with trust policy:
+#      Condition: token.actions.githubusercontent.com:sub =
+#        "repo:<org>/<repo>:environment:<env-name>"
+#
+# See README.md > "GitHub Actions & Labels" for the full deployment guide.
+
+on:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  # ──────────────────────────────────────────────────────────
+  # DEV
+  # ──────────────────────────────────────────────────────────
+  deploy-dev:
+    name: Deploy → dev
+    if: github.event.label.name == 'deploy:dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write   # required for OIDC
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: ./.github/actions/setup-env
+
+      - name: Deploy SST → dev
+        run: pnpm exec sst deploy --stage dev
+
+  # ──────────────────────────────────────────────────────────
+  # STAGE
+  # ──────────────────────────────────────────────────────────
+  deploy-stage:
+    name: Deploy → stage
+    if: github.event.label.name == 'deploy:stage'
+    runs-on: ubuntu-latest
+    environment: stage
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check deploy:dev label is present
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          labels=$(gh pr view ${{ github.event.pull_request.number }} \
+            --json labels \
+            --repo ${{ github.repository }} \
+            --jq '.labels[].name')
+          echo "Current PR labels: $labels"
+          echo "$labels" | grep -q "deploy:dev" \
+            || (echo "ERROR: 'deploy:dev' label must be present before promoting to stage." && exit 1)
+
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: ./.github/actions/setup-env
+
+      - name: Deploy SST → stage
+        run: pnpm exec sst deploy --stage stage
+
+  # ──────────────────────────────────────────────────────────
+  # PROD
+  # ──────────────────────────────────────────────────────────
+  deploy-prod:
+    name: Deploy → prod
+    if: github.event.label.name == 'deploy:prod'
+    runs-on: ubuntu-latest
+    # The "prod" GitHub Environment enforces required-reviewer approval
+    # before credentials are issued — this is the second gate after the
+    # prerequisite label check below.
+    environment: prod
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check deploy:dev and deploy:stage labels are present
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          labels=$(gh pr view ${{ github.event.pull_request.number }} \
+            --json labels \
+            --repo ${{ github.repository }} \
+            --jq '.labels[].name')
+          echo "Current PR labels: $labels"
+          echo "$labels" | grep -q "deploy:dev" \
+            || (echo "ERROR: 'deploy:dev' label must be present before promoting to prod." && exit 1)
+          echo "$labels" | grep -q "deploy:stage" \
+            || (echo "ERROR: 'deploy:stage' label must be present before promoting to prod." && exit 1)
+
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: ./.github/actions/setup-env
+
+      - name: Deploy SST → prod
+        run: pnpm exec sst deploy --stage prod
