@@ -120,6 +120,7 @@ After creating a repository from this template, do these before shipping:
 
 - Rename project metadata in root and app `package.json` files.
 - Update AWS account IDs, profile names, and role ARNs in `sst.config.ts` and GitHub Environments.
+- If you use delegated app domains, set `APP_URL`, `APPS_HOSTED_ZONE_ID`, and `DNS_ROLE_ARN` in each GitHub Environment.
 - Create the required PR labels (`deploy:dev`, `deploy:stage`, `deploy:prod`).
 - Review defaults in `infra/` (domain names, auth settings, table names, retention policy).
 - Run `pnpm verify` and make sure CI passes before first deployment.
@@ -216,7 +217,16 @@ The `prod` GitHub Environment additionally requires a human reviewer to approve.
    - `dev` → `arn:aws:iam::111111111111:role/GHActions-Dev`
    - `stage` → `arn:aws:iam::222222222222:role/GHActions-Stage`
    - `prod` → `arn:aws:iam::333333333333:role/GHActions-Prod`
-3. Create IAM OIDC provider in each AWS account and a role with this trust condition:
+3. If you want automated custom domains, also add:
+   - Variable `APP_URL`
+     - `dev` → deployed app URL for that environment
+     - `stage` → deployed app URL for that environment
+     - `prod` → deployed app URL for that environment
+   - Variable `APPS_HOSTED_ZONE_ID`
+     - delegated Route 53 hosted zone ID for your apps domain
+   - Secret `DNS_ROLE_ARN`
+     - cross-account role ARN that can manage DNS in that hosted zone
+4. Create IAM OIDC provider in each AWS account and a role with this trust condition:
    ```json
    "token.actions.githubusercontent.com:sub":
      "repo:<org>/<repo>:environment:<env-name>"

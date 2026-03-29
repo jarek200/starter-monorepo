@@ -1,5 +1,7 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 
+import { getWebCallbackUrls } from './app-domain';
+
 export function createAuth(
   createUserProfileFunction: ReturnType<typeof import('./functions').createUserProfile>
 ) {
@@ -24,7 +26,15 @@ export function createAuth(
   });
 
   // Add a client to the user pool
-  const authClient = auth.addClient('AuthClient');
+  const callbackUrls = getWebCallbackUrls();
+  const authClient = auth.addClient('AuthClient', {
+    callbackUrls,
+    transform: {
+      client: {
+        logoutUrls: callbackUrls,
+      },
+    },
+  });
 
   return { auth, authClient };
 }
