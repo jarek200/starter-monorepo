@@ -39,20 +39,23 @@ export default $config({
       providers: {
         aws: {
           /**
-           * Map stage name to an AWS profile.
-           * Falls back to the dev profile for any unrecognised stage name
-           * (e.g. personal feature-branch stages like "jarek").
+           * Map stage name to an AWS profile for local development only.
+           * In CI (GitHub Actions sets CI=true) we omit the profile entirely so
+           * the Pulumi AWS provider uses the OIDC credentials injected via
+           * aws-actions/configure-aws-credentials (env vars take precedence
+           * only when no profile is explicitly configured in the provider).
            *
            * IMPORTANT: AWS_PROFILE env var takes precedence over this value.
            * Remove any AWS_PROFILE from your shell / .env if you want this
            * mapping to be effective locally.
            */
-          profile: STAGE_PROFILES[stage] ?? STAGE_PROFILES.dev,
+          profile: process.env.CI ? undefined : (STAGE_PROFILES[stage] ?? STAGE_PROFILES.dev),
         },
       },
     };
   },
   async run() {
+    const { getWebAppUrl, getWebDomainConfig } = await import('./infra/app-domain');
     const { createStorage } = await import('./infra/storage');
     const { createUserProfile } = await import('./infra/functions');
     const { createAuth } = await import('./infra/auth');
@@ -67,6 +70,9 @@ export default $config({
     const dynamoDataSource = createDataSource(api, table);
 
     addAllResolvers(api, dynamoDataSource, String(table.name));
+
+    const webAppUrl = getWebAppUrl();
+    const webDomain = getWebDomainConfig();
 
     const svelteKitTransform = {
       server(server: Record<string, unknown>) {
@@ -91,6 +97,7 @@ export default $config({
       VITE_USER_POOL_CLIENT_ID: authClient.id,
       VITE_GRAPHQL_ENDPOINT: api.url,
       VITE_STAGE: $app.stage,
+      VITE_APP_URL: webAppUrl,
     };
 
     const web = new sst.aws.SvelteKit('Web', {
@@ -98,6 +105,7 @@ export default $config({
       link: [table, auth, authClient, api],
       transform: svelteKitTransform,
       environment: sharedEnv,
+      ...(webDomain ? { domain: webDomain } : {}),
     });
 
     return {
@@ -106,6 +114,7 @@ export default $config({
       userPoolClientId: authClient.id,
       apiUrl: api.url,
       webUrl: web.url,
+      webAppUrl: webAppUrl ?? web.url,
     };
   },
 });

@@ -22,6 +22,9 @@ export const envSchema = z.object({
   // Stage - accepts any string to support custom SST stage names (feature branches, PR previews, etc.)
   VITE_STAGE: z.string().optional(),
 
+  // Public app URL when a custom domain is configured for the deployed stage
+  VITE_APP_URL: z.string().url().optional(),
+
   // Node Environment
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
