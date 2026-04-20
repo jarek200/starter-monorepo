@@ -36,7 +36,7 @@
   "type": "module",
   "packageManager": "pnpm@10.20.0",
   "dependencies": {
-    "@aws-amplify/api-graphql": "^4.8.5",
+    "@aws-amplify/api-graphql": "^4.8.6",
     "@sst-monorepo/graphql": "workspace:*",
     "bits-ui": "^2.16.4"
   }
