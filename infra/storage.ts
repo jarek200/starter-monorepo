@@ -16,6 +16,7 @@ export function createStorage() {
       GSI1: { hashKey: 'GSI1PK', rangeKey: 'GSI1SK' },
       GSI2: { hashKey: 'GSI2PK', rangeKey: 'GSI2SK' },
     },
+    deletionProtection: $app.stage === 'prod',
   });
 
   return { table };

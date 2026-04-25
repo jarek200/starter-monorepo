@@ -122,6 +122,7 @@ After creating a repository from this template, do these before shipping:
 - Update AWS account IDs, profile names, and role ARNs in `sst.config.ts` and GitHub Environments.
 - If you use delegated app domains, set `APP_URL`, `APPS_HOSTED_ZONE_ID`, and `DNS_ROLE_ARN` in each GitHub Environment.
 - Create the required PR labels (`deploy:dev`, `deploy:stage`, `deploy:prod`).
+- Enable **branch protection rules** on `main` (see [Branch protection](#branch-protection) below).
 - Review defaults in `infra/` (domain names, auth settings, table names, retention policy).
 - Run `pnpm verify` and make sure CI passes before first deployment.
 
@@ -243,6 +244,21 @@ In your GitHub repo, create these labels (Settings → Labels):
 | `deploy:dev`    | `#0075ca`         | Trigger dev deployment    |
 | `deploy:stage`  | `#e4e669`         | Trigger stage deployment  |
 | `deploy:prod`   | `#d93f0b`         | Trigger prod deployment   |
+
+### Branch protection
+
+Enable branch protection on `main` (Settings → Branches → Add rule):
+
+| Setting                                | Recommended value |
+|----------------------------------------|-------------------|
+| Require a pull request before merging  | Yes               |
+| Required approvals                     | 1+                |
+| Require status checks to pass          | `Lint & Type Check`, `Test`, `Build` |
+| Require branches to be up to date      | Yes               |
+| Restrict who can push                  | Admins only       |
+| Do not allow bypassing the above       | Yes (for teams)   |
+
+This prevents direct pushes to `main` and ensures every change goes through CI and code review.
 
 ## GraphQL code generation
 
