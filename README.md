@@ -38,7 +38,7 @@ uses the `remove` policy — safe for short-lived personal stacks.
 
 ## Prerequisites
 
-- **Node.js 22** (`nvm install 22`)
+- **Node.js 24** (`nvm install 24`)
 - **pnpm** (`npm install -g pnpm`)
 - **AWS CLI** and SSO configured (see [Local AWS setup](#local-aws-setup))
 

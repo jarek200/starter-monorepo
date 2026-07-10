@@ -1,6 +1,5 @@
 <script lang="ts">
 import { cn } from '\$lib/utils.js';
-// biome-ignore lint/style/useImportType: SeparatorPrimitive.Root is used as a component value, not just a type
 import { Separator as SeparatorPrimitive } from 'bits-ui';
 
 let {

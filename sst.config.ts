@@ -76,7 +76,7 @@ export default $config({
 
     const svelteKitTransform = {
       server(server: Record<string, unknown>) {
-        server.runtime = 'nodejs22.x';
+        server.runtime = 'nodejs24.x';
         server.memory = stageConfig.sveltekit.memory;
         // biome-ignore lint/suspicious/noExplicitAny: SST types incomplete
         if (!server.nodejs) server.nodejs = {} as any;

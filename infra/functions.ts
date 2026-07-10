@@ -7,7 +7,7 @@ export function createUserProfile(
 ) {
   const createUserProfileFunction = new sst.aws.Function('CreateUserProfile', {
     handler: 'packages/functions/src/auth/create-user-profile.handler',
-    runtime: 'nodejs22.x',
+    runtime: 'nodejs24.x',
     memory: stageConfig.lambda.memory,
     timeout: stageConfig.lambda.timeout,
     link: [table],

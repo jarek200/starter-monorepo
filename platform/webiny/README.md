@@ -21,7 +21,7 @@ Everything runs serverless on AWS. You own all the infrastructure.
 
 ## Prerequisites
 
-- **Node.js ≥22** (`nvm install 22`)
+- **Node.js ≥24** (`nvm install 24`)
 - **Yarn** (`npm install -g yarn`) — Webiny uses Yarn, not pnpm
 - **AWS account and credentials** configured for the target environment
 
@@ -143,7 +143,7 @@ See [Webiny extension docs](https://www.webiny.com/docs) for details.
 
 Webiny is deployed as a follow-on step inside the SST deploy jobs in
 `.github/workflows/deploy.yml`. The same AWS OIDC role used for SST is reused for Webiny
-(same AWS account per stage, same permissions). Node.js 22 is required.
+(same AWS account per stage, same permissions). Node.js 24 is required.
 
 ## Useful commands
 

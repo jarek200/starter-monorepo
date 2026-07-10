@@ -45,16 +45,16 @@
   "license": "ISC",
   "description": "SST monorepo starter \u2014 SvelteKit web app (landing, login, dashboard), AppSync, Cognito",
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "@pulumi/aws": "^7.23.0",
-    "@pulumi/pulumi": "^3.228.0",
-    "@types/node": "^25.5.0",
-    "@vitest/coverage-v8": "^4.1.2",
+    "@biomejs/biome": "^2.5.3",
+    "@pulumi/aws": "^7.36.0",
+    "@pulumi/pulumi": "^3.251.0",
+    "@types/node": "^24.13.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "sst": "^4.5.12",
-    "turbo": "^2.8.21",
-    "vitest": "^4.1.2"
+    "sst": "^4.17.0",
+    "turbo": "^2.10.4",
+    "vitest": "^4.1.10"
   },
   "packageManager": "pnpm@10.20.0"
 }
