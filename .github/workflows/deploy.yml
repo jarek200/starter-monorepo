@@ -55,7 +55,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v6
@@ -126,7 +126,7 @@ jobs:
           echo "$labels" | grep -q "deploy:dev" \
             || (echo "ERROR: 'deploy:dev' label must be present before promoting to stage." && exit 1)
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v6
@@ -202,7 +202,7 @@ jobs:
           echo "$labels" | grep -q "deploy:stage" \
             || (echo "ERROR: 'deploy:stage' label must be present before promoting to prod." && exit 1)
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v6
