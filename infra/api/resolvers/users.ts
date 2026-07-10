@@ -1,63 +1,81 @@
 /// <reference path="../../../.sst/platform/config.d.ts" />
 
+const INPUT_LIMITS = {
+  name: 100,
+  bio: 500,
+  avatar: 2048,
+};
+
+/**
+ * Shared response normalizer for user profile resolvers.
+ * Ensures userId and username are always present in the response,
+ * falling back to Cognito identity claims when DynamoDB fields are empty.
+ */
+const normalizeProfileResponse = `
+  function normalizeProfile(ctx) {
+    if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
+    if (!ctx.result) return util.error('User profile not found', 'NotFound');
+
+    const profile = ctx.result;
+    if (!profile.userId) {
+      profile.userId = ctx.identity.sub;
+    }
+    if (!profile.username) {
+      const email = profile.email
+        || ctx.identity.claims?.['cognito:username']
+        || ctx.identity.claims?.email
+        || '';
+      profile.username = email.includes('@') ? email.split('@')[0] : 'user';
+    }
+    return profile;
+  }
+`;
+
 export function addUserResolvers(
   api: ReturnType<typeof import('../api-setup').createApi>,
   dynamoDataSource: ReturnType<typeof import('../api-setup').createDataSource>,
   _tableName: string
 ) {
-  // Query: getMyProfile - Get current user's profile
   api.addResolver('Query getMyProfile', {
     dataSource: dynamoDataSource.name,
     code: `
       import { util } from '@aws-appsync/utils';
-      
+      ${normalizeProfileResponse}
       export function request(ctx) {
-        const userId = ctx.identity.sub;
         return {
           operation: 'GetItem',
           key: util.dynamodb.toMapValues({
-            PK: \`USER#\${userId}\`,
+            PK: \`USER#\${ctx.identity.sub}\`,
             SK: 'PROFILE'
           })
         };
       }
       
       export function response(ctx) {
-        if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
-        
-        if (!ctx.result) return util.error('User profile not found', 'NotFound');
-        
-        const userId = ctx.identity.sub;
-        const profile = ctx.result;
-        
-        if (!profile.userId) {
-          profile.userId = userId;
-        }
-        
-        if (!profile.username) {
-          const email = profile.email || ctx.identity.claims?.['cognito:username'] || ctx.identity.claims?.email || '';
-          if (email && email.includes('@')) {
-            profile.username = email.split('@')[0];
-          } else {
-            profile.username = 'user';
-          }
-        }
-        
-        return profile;
+        return normalizeProfile(ctx);
       }
     `,
   });
 
-  // Mutation: updateUserProfile - Update current user's profile
   api.addResolver('Mutation updateUserProfile', {
     dataSource: dynamoDataSource.name,
     code: `
       import { util } from '@aws-appsync/utils';
-      
+      ${normalizeProfileResponse}
       export function request(ctx) {
         const userId = ctx.identity.sub;
         const input = ctx.args.input || {};
-        
+
+        if (input.name !== undefined && input.name !== null && input.name.length > ${INPUT_LIMITS.name}) {
+          return util.error('name must be at most ${INPUT_LIMITS.name} characters', 'ValidationError');
+        }
+        if (input.bio !== undefined && input.bio !== null && input.bio.length > ${INPUT_LIMITS.bio}) {
+          return util.error('bio must be at most ${INPUT_LIMITS.bio} characters', 'ValidationError');
+        }
+        if (input.avatar !== undefined && input.avatar !== null && input.avatar.length > ${INPUT_LIMITS.avatar}) {
+          return util.error('avatar must be at most ${INPUT_LIMITS.avatar} characters', 'ValidationError');
+        }
+
         const updateExpression = [];
         const expressionNames = {};
         const expressionValues = {};
@@ -104,29 +122,7 @@ export function addUserResolvers(
       }
       
       export function response(ctx) {
-        if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
-        
-        if (!ctx.result) return util.error('User profile not found', 'NotFound');
-        
-        const userId = ctx.identity.sub;
-        const profile = ctx.result;
-        
-        // Ensure userId is set
-        if (!profile.userId) {
-          profile.userId = userId;
-        }
-        
-        // Ensure username is set
-        if (!profile.username) {
-          const email = profile.email || ctx.identity.claims?.['cognito:username'] || ctx.identity.claims?.email || '';
-          if (email && email.includes('@')) {
-            profile.username = email.split('@')[0];
-          } else {
-            profile.username = 'user';
-          }
-        }
-        
-        return profile;
+        return normalizeProfile(ctx);
       }
     `,
   });
