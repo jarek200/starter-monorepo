@@ -2,16 +2,12 @@ name: Deploy
 
 # Triggered whenever a deploy:* label is added to a PR.
 #
-# Promotion flow (add labels in order):
-#   1. deploy:int   --> deploys SST to the int AWS account
-#   2. deploy:stage --> deploys SST to the stage AWS account
-#                       (blocked unless deploy:int label is also present)
-#   3. deploy:prod  --> deploys SST to the prod AWS account
-#                       (blocked unless deploy:int and deploy:stage are present)
-#                       (also gated by GitHub Environment required reviewers)
-#                       (on success, merges the PR into main if it targets main)
+# Promotion flow (add labels in order; order comes from repo variable DEPLOY_ENV_ORDER):
+#   Example int,prod:  deploy:int → deploy:prod (prod requires deploy:int on the PR)
+#   Example int,stage,prod: each step requires all prior deploy:* labels on the PR
+#   Admin factory sets DEPLOY_ENV_ORDER when provisioning accounts.
 #
-# Setup required (one-time, outside this repo):
+# Setup required (one-time, outside this repo — or via Admin factory):
 #   1. Create GitHub Environments: int, stage, prod
 #      - Set "Required reviewers" on prod
 #   2. Add secrets to each Environment:
@@ -53,7 +49,6 @@ jobs:
 
   gate:
     needs: setup
-    if: needs.setup.outputs.env_name == 'stage' || needs.setup.outputs.env_name == 'prod'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -63,35 +58,45 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ENV_NAME: ${{ needs.setup.outputs.env_name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEPLOY_ENV_ORDER: ${{ vars.DEPLOY_ENV_ORDER }}
         run: |
           set -euo pipefail
+          ORDER="${DEPLOY_ENV_ORDER:-int,stage,prod}"
+          IFS=',' read -ra ENVS <<< "$ORDER"
+
+          prior=()
+          for env in "${ENVS[@]}"; do
+            env="${env// /}"
+            [ -n "$env" ] || continue
+            if [ "$env" = "$ENV_NAME" ]; then
+              break
+            fi
+            prior+=("$env")
+          done
+
+          if [ "${#prior[@]}" -eq 0 ]; then
+            echo "No prior environments required for $ENV_NAME (order: $ORDER)"
+            exit 0
+          fi
+
           labels=$(gh pr view "$PR_NUMBER" \
             --repo "$GITHUB_REPOSITORY" \
             --json labels \
             --jq '.labels[].name')
           echo "Current PR labels: $labels"
+          echo "Required prior deploy labels for $ENV_NAME: ${prior[*]}"
 
-          if [ "$ENV_NAME" = "stage" ]; then
-            echo "$labels" | grep -q "deploy:int" \
-              || (echo "ERROR: 'deploy:int' label must be present before promoting to stage." && exit 1)
-          fi
-
-          if [ "$ENV_NAME" = "prod" ]; then
-            echo "$labels" | grep -q "deploy:int" \
-              || (echo "ERROR: 'deploy:int' label must be present before promoting to prod." && exit 1)
-            echo "$labels" | grep -q "deploy:stage" \
-              || (echo "ERROR: 'deploy:stage' label must be present before promoting to prod." && exit 1)
-          fi
+          for req in "${prior[@]}"; do
+            echo "$labels" | grep -q "deploy:${req}" \
+              || (echo "ERROR: 'deploy:${req}' label must be present before promoting to ${ENV_NAME}." && exit 1)
+          done
 
   deploy:
     name: Deploy → ${{ needs.setup.outputs.env_name }}
     needs:
       - setup
       - gate
-    if: |
-      always() &&
-      needs.setup.result == 'success' &&
-      (needs.setup.outputs.env_name == 'int' || needs.gate.result == 'success')
+    if: always() && needs.setup.result == 'success' && needs.gate.result == 'success'
     runs-on: ubuntu-latest
     # The "prod" GitHub Environment enforces required-reviewer approval
     # before credentials are issued — the second gate after label checks.
