@@ -7,20 +7,64 @@ alwaysApply: false
 
 ## Overview
 
-This monorepo uses AWS AppSync with JavaScript resolvers (VTL is not used). Resolvers are organized by feature domain and use direct DynamoDB data sources for simple CRUD operations.
+This monorepo uses **AWS AppSync JavaScript resolvers** on runtime **`APPSYNC_JS` / `1.0.0`** (ES6 subset — not Node.js). Resolvers are defined as inline `code` strings in SST via `api.addResolver()` and talk to DynamoDB through a unit resolver + direct data source.
+
+**Do not use VTL** in this starter — use JavaScript `request` / `response` handlers and `@aws-appsync/utils`.
+
+### Stack integration (this repo)
+
+| Layer | Location |
+|-------|----------|
+| GraphQL schema | `packages/graphql/schema.graphql` → `pnpm codegen` |
+| AppSync API + Cognito auth | `infra/api/api-setup.ts` → `createApi()` |
+| DynamoDB data source | `infra/api/api-setup.ts` → `createDataSource()` (`AppTableDynamo`) |
+| Lambda data source (optional) | `infra/api/api-setup.ts` → `createLambdaDataSource()` |
+| Resolvers | `infra/api/resolvers/*.ts` → `addAllResolvers()` |
+| Wiring | `sst.config.ts` |
+| Web client | `apps/web/src/lib/services/graphql.ts` (Amplify `generateClient`, `authMode: 'userPool'`) |
+
+**SST (`sst.aws.AppSync`):** use `api.addResolver("Query field", { dataSource, code })` for unit resolvers. For multi-step logic, use `api.addFunction()` + pipeline resolver (`kind: "pipeline"`, `functions: [...]`, `code`) — see SST AppSync docs. Avoid naming a data source `dynamodb` (SST/AppSync name collision).
+
+### APPSYNC_JS updates worth using
+
+Recent runtime improvements (still `1.0.0`):
+
+- **Arrow functions** and **array methods** — `map`, `filter`, `reduce`, `find`, `findLast`, `some`, `every`, etc. Prefer these over manual loops in resolver code.
+- **`runtime.earlyReturn(value)`** — stop a function or pipeline step early and return a value (skips remaining functions / data source).
+- **`util.unauthorized()`** — fail with an authorization error (prefer over generic `util.error` for auth checks).
+- **`ctx.stash` / `ctx.prev.result`** — pass data between pipeline functions (unit resolvers in this starter usually don't need these).
+
+```javascript
+import { util, runtime } from '@aws-appsync/utils';
+
+export function request(ctx) {
+  if (!ctx.identity?.sub) {
+    util.unauthorized();
+  }
+  if (!ctx.args.input?.name) {
+    runtime.earlyReturn({ ok: false, reason: 'missing name' });
+  }
+  return { operation: 'GetItem', /* ... */ };
+}
+```
 
 ## File Organization
 
-Resolvers are organized in `infra/api/resolvers/`:
-- Each feature gets its own file (e.g., `users.ts`, `pictures.ts`)
-- All resolvers are aggregated in `index.ts`
-- Resolvers are registered in `sst.config.ts` via `addAllResolvers()`
+Resolvers live in `infra/api/resolvers/`:
+- **`users.ts`** — current implementation: `getMyProfile`, `updateUserProfile` (see this file as the reference)
+- **New features** — add one file per domain (e.g., `notifications.ts`), then wire it in `index.ts`
+- **`index.ts`** — aggregates modules via `addAllResolvers()`
+- **`sst.config.ts`** — calls `addAllResolvers()` from `infra/api/resolvers/index.ts`
 
 ## Step-by-Step: Creating a New Resolver
 
 ### 1. Update GraphQL Schema
 
-First, define your types and operations in `packages/graphql/schema.graphql`:
+Define types and operations in `packages/graphql/schema.graphql`, then run `pnpm codegen`.
+
+Existing operations: `getMyProfile`, `updateUserProfile` on type `User`.
+
+For a new feature, extend the schema (example placeholder):
 
 ```graphql
 type Entity {
@@ -46,7 +90,7 @@ type Mutation {
 
 ### 2. Create Resolver Module
 
-Create a new file `infra/api/resolvers/[feature].ts`:
+Create `infra/api/resolvers/[feature].ts`. Follow patterns from `users.ts` (shared normalizers, input limits, `UpdateItem` with `returnValues: 'ALL_NEW'`):
 
 ```typescript
 /// <reference path="../../../.sst/platform/config.d.ts" />
@@ -142,10 +186,14 @@ export function addAllResolvers(
 
 ### 4. Add Frontend Service
 
-Add GraphQL client functions in `apps/web/src/lib/services/graphql.ts`:
+Add GraphQL client functions in `apps/web/src/lib/services/graphql.ts`. Use generated types from `@sst-monorepo/graphql` (see `getMyProfile` / `updateUserProfile`):
 
 ```typescript
-export async function getMyEntity() {
+import type { GraphQLResult } from '@aws-amplify/api-graphql';
+import type { Entity } from '@sst-monorepo/graphql';
+// ... getClient() from ./graphql.ts
+
+export async function getMyEntity(): Promise<Entity | null> {
   const query = `
     query GetMyEntity {
       getMyEntity {
@@ -159,45 +207,31 @@ export async function getMyEntity() {
   `;
 
   const client = await getClient();
-  const result = await client.graphql({
-    query,
-  }) as GraphQLResult<any>;
+  const result = (await client.graphql({ query })) as GraphQLResult<{ getMyEntity: Entity | null }>;
 
   if (result.errors) {
     throw new Error(result.errors[0]?.message || 'Failed to get entity');
   }
 
-  return result.data?.getMyEntity || null;
-}
-
-export async function createEntity(input: { name: string }) {
-  const mutation = `
-    mutation CreateEntity($input: CreateEntityInput!) {
-      createEntity(input: $input) {
-        entityId
-        userId
-        name
-        createdAt
-        updatedAt
-      }
-    }
-  `;
-
-  const client = await getClient();
-  const result = await client.graphql({
-    query: mutation,
-    variables: { input },
-  }) as GraphQLResult<any>;
-
-  if (result.errors) {
-    throw new Error(result.errors[0]?.message || 'Failed to create entity');
-  }
-
-  return result.data?.createEntity || null;
+  return result.data?.getMyEntity ?? null;
 }
 ```
 
 ## Resolver Code Patterns
+
+### Context object (`ctx`)
+
+Handlers receive a context object. Common fields in this starter:
+
+| Field | Use |
+|-------|-----|
+| `ctx.identity.sub` | Cognito user ID (authorization) |
+| `ctx.identity.claims` | Cognito claims (`email`, `cognito:username`, …) |
+| `ctx.args` | GraphQL field arguments |
+| `ctx.result` | Data source result (mainly in `response`) |
+| `ctx.error` | Data source / runtime error (check first in `response`) |
+| `ctx.stash` | Pipeline-only shared state between functions |
+| `ctx.prev.result` | Pipeline-only result from previous function |
 
 ### Standard Request/Response Structure
 
@@ -274,26 +308,32 @@ export function request(ctx) {
 ```
 
 #### UpdateItem (Partial Update)
+
+Match `users.ts`: build a dynamic `SET` expression, use `returnValues: 'ALL_NEW'`, normalize in `response()`.
+
 ```javascript
 export function request(ctx) {
   const userId = ctx.identity.sub;
   const input = ctx.args.input || {};
-  
+
   const updateExpression = [];
   const expressionNames = {};
   const expressionValues = {};
-  
+
   if (input.name !== undefined) {
     updateExpression.push('#name = :name');
     expressionNames['#name'] = 'name';
     expressionValues[':name'] = input.name;
   }
-  
-  // Always update updatedAt
+
+  if (updateExpression.length === 0) {
+    return util.error('No fields to update', 'ValidationError');
+  }
+
   updateExpression.push('#updatedAt = :updatedAt');
   expressionNames['#updatedAt'] = 'updatedAt';
   expressionValues[':updatedAt'] = util.time.nowISO8601();
-  
+
   return {
     operation: 'UpdateItem',
     key: util.dynamodb.toMapValues({
@@ -304,22 +344,15 @@ export function request(ctx) {
       expression: 'SET ' + updateExpression.join(', '),
       expressionNames: expressionNames,
       expressionValues: util.dynamodb.toMapValues(expressionValues)
-    }
+    },
+    returnValues: 'ALL_NEW'
   };
 }
 
 export function response(ctx) {
   if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
-  
-  // Fetch updated item
-  const userId = ctx.identity.sub;
-  return {
-    operation: 'GetItem',
-    key: util.dynamodb.toMapValues({
-      PK: `USER#${userId}`,
-      SK: 'PROFILE'
-    })
-  };
+  if (!ctx.result) return util.error('User profile not found', 'NotFound');
+  return ctx.result;
 }
 ```
 
@@ -384,16 +417,14 @@ We use a single DynamoDB table with composite keys:
 
 ### Common Key Patterns
 
+This starter uses table `AppTable` with keys defined in `infra/storage.ts` (GSI1, GSI2 available for new access patterns):
+
 ```javascript
-// User Profile
+// User profile (implemented in users.ts)
 PK: `USER#${userId}`
 SK: 'PROFILE'
 
-// Entity Metadata
-PK: `ENTITY#${entityId}`
-SK: 'METADATA'
-
-// User's Entities (for GSI queries)
+// Example: user-owned items on GSI1 (when you add a new feature)
 GSI1PK: `USER#${userId}`
 GSI1SK: `ENTITY#${timestamp}`
 ```
@@ -419,9 +450,10 @@ const username = ctx.identity.claims?.['cognito:username'];
 
 ### Authorization Patterns
 
-- **User-owned resources**: Always verify `userId` matches `ctx.identity.sub`
-- **Public queries**: No identity check needed
-- **Admin operations**: Check user roles/permissions (if implemented)
+- **User-owned resources**: scope keys with `ctx.identity.sub` (see `users.ts`)
+- **Auth failure**: `util.unauthorized()` — do not return partial data
+- **Validation failure**: `util.error(message, 'ValidationError')` in `request` or `response` (see input length checks in `users.ts`)
+- **Public queries**: omit identity checks only when intentionally public
 
 ## Error Handling
 
@@ -457,50 +489,71 @@ export function response(ctx) {
 
 ## Response Transformation
 
-### Common Transformations
+See `normalizeProfileResponse` in `infra/api/resolvers/users.ts` for the shared helper pattern.
 
 ```javascript
 export function response(ctx) {
   if (ctx.error) return util.error(ctx.error.message, ctx.error.type);
-  
+
   const result = ctx.result;
-  
-  // Ensure required fields exist
+
+  // Ensure required fields exist (getMyProfile / updateUserProfile)
   if (!result.userId) {
     result.userId = ctx.identity.sub;
   }
-  
-  // Derive fields from other data
-  if (!result.username && result.email) {
-    result.username = result.email.split('@')[0];
+
+  if (!result.username) {
+    const email = result.email
+      || ctx.identity.claims?.['cognito:username']
+      || ctx.identity.claims?.email
+      || '';
+    result.username = email.includes('@') ? email.split('@')[0] : 'user';
   }
-  
-  // Format timestamps
-  result.createdAt = result.createdAt || util.time.nowISO8601();
-  
+
   return result;
 }
 ```
 
 ## Important Notes
 
-1. **Template Strings**: Resolver code uses template strings (backticks). Escape backticks inside: `` \` ``
-2. **No External Packages**: Resolvers run in a JavaScript runtime, not Node.js. Only AWS AppSync utils are available.
-3. **Always Handle Errors**: Check `ctx.error` first in `response()` function
-4. **Use Utilities**: Always use `util.dynamodb.toMapValues()` for DynamoDB values
-5. **Timestamps**: Use `util.time.nowISO8601()` for timestamps
-6. **Auto IDs**: Use `util.autoId()` to generate unique IDs
+1. **Runtime**: `APPSYNC_JS` `1.0.0` only — ES6 subset, no Node.js APIs, no npm imports except `@aws-appsync/utils` (`util`, `runtime`, `extensions`).
+2. **Template strings**: Resolver `code` lives inside TS template strings — escape inner backticks: `` \` ``
+3. **Shared resolver JS**: Extract repeated snippets as TS string constants (see `normalizeProfileResponse` in `users.ts`) and inject into multiple `code` blocks.
+4. **DynamoDB values**: Always use `util.dynamodb.toMapValues()` for keys and attribute values.
+5. **Timestamps / IDs**: `util.time.nowISO8601()`, `util.autoId()`.
+6. **Unit vs pipeline**: Default to unit resolver + DynamoDB. Use `api.addFunction()` + pipeline when you need validate → fetch → transform steps or Lambda + DynamoDB in one field.
+7. **Lambda resolver path**: Wire `createLambdaDataSource()` in `api-setup.ts`, then `api.addResolver(..., { dataSource: lambdaDS.name, code })` or attach Lambda to a pipeline function.
 
 ## Testing
 
-1. Use AWS AppSync Console to test queries/mutations
-2. Check CloudWatch Logs for resolver execution
-3. Verify DynamoDB items are created/updated correctly
+1. Run `pnpm codegen` after schema changes.
+2. **AppSync console** — mock `ctx` (arguments, identity, `result`) and run request/response handlers without hitting DynamoDB.
+3. **`EvaluateCode` API / CLI** — test handler code remotely with mocked JSON context (`appsync:EvaluateCode` permission):
+
+```bash
+aws appsync evaluate-code \
+  --code file://handler.js \
+  --function request \
+  --context file://context.json \
+  --runtime name=APPSYNC_JS,runtimeVersion=1.0.0
+```
+
+   Enhanced context mocking (2025+) supports full `ctx` shapes including `stash` and `outErrors`. For pipeline resolvers, chain evaluations manually (`prev.result`, `stash` carry forward).
+
+4. **Live debugging** — run queries in AppSync console with CloudWatch logs enabled.
+5. **Integration** — verify items in DynamoDB table `AppTable` after deploy.
 
 ## Performance Best Practices
 
-1. Use Query instead of Scan when possible
-2. Limit results with `limit` parameter
-3. Use pagination with `nextToken` for large datasets
-4. Minimize resolver code - keep logic simple
-5. Use GSIs for alternative access patterns
+1. Use **Query** on PK/GSI — never Scan in production paths
+2. Limit results with `limit`; paginate with `nextToken`
+3. Keep resolver code small; use **arrow functions / array methods** for transforms
+4. Use **GSI1 / GSI2** (`infra/storage.ts`) for new access patterns
+5. Prefer DynamoDB unit resolvers; add Lambda only when JS resolver logic is insufficient
+6. For hot fields, consider AppSync **server-side caching** + `extensions.evictFromApiCache()` on mutations (not used in starter yet)
+
+## References
+
+- [AppSync JS runtime utilities](https://docs.aws.amazon.com/appsync/latest/devguide/resolver-util-reference-js.html)
+- [Testing JS resolvers (`EvaluateCode`)](https://docs.aws.amazon.com/appsync/latest/devguide/test-debug-resolvers-js.html)
+- [SST `AppSync` component](https://sst.dev/docs/component/aws/app-sync)

@@ -13,13 +13,21 @@
  *
  * You can also override per-stage profiles via env vars without touching
  * this file:
- *   AWS_PROFILE_DEV=my-dev-profile pnpm exec sst deploy --stage dev
+ *   AWS_PROFILE_DEV=my-dev-profile pnpm dev
+ *   AWS_PROFILE_INT=my-int-profile pnpm exec sst deploy --stage int
+ *
+ * Stages:
+ *   pnpm dev              → SST dev mode (hot reload); personal stage name, uses dev profile
+ *   pnpm sst:deploy int   → shared int account (CI label deploy:int)
+ *   pnpm sst:deploy stage → shared stage account (CI label deploy:stage)
+ *   pnpm sst:deploy prod  → production (CI label deploy:prod)
  *
  * Default `dev` uses profile **default** — typical when keys live only in
- * ~/.aws/credentials under [default]. Use AWS_PROFILE_DEV=dev (etc.) for named profiles.
+ * ~/.aws/credentials under [default].
  */
 const STAGE_PROFILES: Record<string, string> = {
   dev: process.env.AWS_PROFILE_DEV ?? 'default',
+  int: process.env.AWS_PROFILE_INT ?? 'int',
   stage: process.env.AWS_PROFILE_STAGE ?? 'stage',
   prod: process.env.AWS_PROFILE_PROD ?? 'prod',
 };
@@ -32,7 +40,7 @@ export default $config({
       name: 'sst-monorepo-starter',
       /**
        * Retain all resources in prod to prevent accidental data loss.
-       * All other stages (dev, stage, feature branches) are cleaned up on remove.
+       * All other stages (dev, int, stage, personal stages) are cleaned up on remove.
        */
       removal: stage === 'prod' ? 'retain' : 'remove',
       home: 'aws',

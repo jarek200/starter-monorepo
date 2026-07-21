@@ -1,0 +1,133 @@
+---
+description: >-
+  Strands MCP tools and AgentCore Memory (STM/LTM) patterns for packages/agent-core.
+  Use when adding tools, memory, gateways, or tuning session persistence.
+globs: packages/agent-core/**/*
+alwaysApply: false
+---
+
+# AgentCore Strands — MCP & Memory
+
+## MCP (Model Context Protocol)
+
+Strands has **built-in MCP** via `strands.tools.mcp.MCPClient`. This repo wires it in `packages/agent-core/src/mcp_tools.py`.
+
+### Local / runtime stdio MCP (implemented)
+
+Enable with environment variables (see `.env.example`):
+
+```bash
+MCP_SERVER_COMMAND=uvx
+MCP_SERVER_ARGS=awslabs.aws-documentation-mcp-server@latest
+```
+
+Pattern (must keep client open for the invocation):
+
+```python
+from mcp import StdioServerParameters, stdio_client
+from strands.tools.mcp import MCPClient
+
+with MCPClient(
+    lambda: stdio_client(StdioServerParameters(command="uvx", args=["awslabs.aws-documentation-mcp-server@latest"]))
+) as client:
+    agent = Agent(tools=client.list_tools_sync())
+    agent("Your question")
+```
+
+**Constraints:** stdio MCP needs the server binary/`uvx` available in the runtime environment. Prefer **AgentCore Gateway** for production (no subprocess in Lambda/container unless you control the image).
+
+### Production MCP — AgentCore Gateway
+
+Use the CLI — do not hardcode gateway ARNs in agent code:
+
+```bash
+agentcore add gateway
+agentcore add gateway-target --type mcp ...   # see CLI gateway docs
+agentcore deploy
+```
+
+Gateway supports MCP server, OpenAPI, Lambda, Smithy, API Gateway, web-search, and knowledge-base targets. Tools are governed and observable; better for shared prod tools than ad-hoc stdio servers.
+
+## AgentCore Memory
+
+Use **`AgentCoreMemorySessionManager`** — bridges Strands sessions to AgentCore Memory (STM + optional LTM retrieval). Implemented in `packages/agent-core/src/memory.py`.
+
+### Provision memory
+
+```bash
+# Short-term only (conversation persistence)
+agentcore add memory --name AppAgentMemory
+
+# Long-term strategies (preferences, facts, summaries)
+agentcore add memory --name AppAgentMemory --strategies SEMANTIC,SUMMARIZATION,USER_PREFERENCE
+
+agentcore deploy
+# Set AGENTCORE_MEMORY_ID from agentcore status / console
+```
+
+### Short-term memory (recommended default)
+
+- Set `AGENTCORE_MEMORY_ID` only.
+- Keep `AGENTCORE_MEMORY_LTM=false` (default).
+- Use `AGENTCORE_MEMORY_BATCH_SIZE=1` — **flush each turn** (lowest latency, simplest debugging).
+
+Pass stable ids per user/session in the invoke payload:
+
+```json
+{
+  "prompt": "Remember I prefer eu-west-1",
+  "session_id": "sess-abc",
+  "actor_id": "user-123"
+}
+```
+
+### Long-term memory (LTM)
+
+1. Create memory with strategies (`SEMANTIC`, `SUMMARIZATION`, `USER_PREFERENCE`).
+2. Set `AGENTCORE_MEMORY_LTM=true`.
+3. `memory.py` adds `retrieval_config` namespaces (`/facts/{actorId}`, `/preferences/{actorId}`, `/summaries/{actorId}/{sessionId}`).
+
+Tune retrieval in `memory.py` — `RetrievalConfig(top_k=…, relevance_score=…)` per namespace.
+
+### Batching (`batch_size`)
+
+| Value | Behavior |
+|-------|----------|
+| `1` (default) | Each message sent to AgentCore Memory immediately |
+| `2–100` | Buffer locally; flush when buffer full **or on context manager exit** |
+
+**Always** use `with AgentCoreMemorySessionManager(...) as session_manager:` (or `.close()`) when `batch_size > 1`, or buffered turns are lost.
+
+### Dependencies
+
+```bash
+pip install 'bedrock-agentcore[strands-agents]'
+```
+
+Imports:
+
+```python
+from bedrock_agentcore.memory.integrations.strands.config import AgentCoreMemoryConfig, RetrievalConfig
+from bedrock_agentcore.memory.integrations.strands.session_manager import AgentCoreMemorySessionManager
+```
+
+## Runtime notes (APPSYNC_JS unrelated)
+
+- AgentCore agent code is **Python**, not AppSync JS.
+- No Node.js APIs in the agent process — only Strands + `bedrock-agentcore` + optional `mcp`.
+- Region: default `AWS_REGION=eu-west-1` in `config.py`.
+
+## Checklist — adding MCP + memory to an agent change
+
+1. Update `src/agent.py` only if orchestration changes; prefer `mcp_tools.py` / `memory.py`.
+2. Document new env vars in `.env.example`.
+3. If new memory strategies: update `build_memory_config()` retrieval namespaces.
+4. For prod MCP: plan Gateway target, not new stdio servers.
+5. Run locally with `agentcore dev` or `python3 src/agent.py` before `agentcore deploy`.
+
+## References
+
+- [Strands MCP (SDK)](https://github.com/strands-agents/sdk-python)
+- [AWS Open Source — Strands & MCP](https://aws.amazon.com/blogs/opensource/open-protocols-for-agent-interoperability-part-3-strands-agents-mcp/)
+- [AgentCore Memory session manager](https://strandsagents.com/docs/community/session-managers/agentcore-memory/)
+- [AgentCore Gateway](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html)

@@ -27,6 +27,10 @@ const configs: Record<string, StageConfig> = {
     lambda: { memory: '256 MB', timeout: '10 seconds' },
     sveltekit: { memory: '512 MB' },
   },
+  int: {
+    lambda: { memory: '256 MB', timeout: '10 seconds' },
+    sveltekit: { memory: '512 MB' },
+  },
   stage: {
     lambda: { memory: '512 MB', timeout: '15 seconds' },
     sveltekit: { memory: '1024 MB' },

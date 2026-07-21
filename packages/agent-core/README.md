@@ -1,93 +1,143 @@
-# Python Bedrock AgentCore Starter — `packages/agent-core`
+# Python Bedrock AgentCore — `packages/agent-core`
 
-This folder follows the official **Amazon Bedrock AgentCore starter toolkit** flow for **Python**.
+Strands Agents on **Amazon Bedrock AgentCore Runtime**, with optional **MCP tools** and **AgentCore Memory** (short-term by default).
 
 ## Prerequisites
 
 - **Python 3.10+**
-- **AWS credentials** with permissions for the toolkit
-- **Bedrock model access** enabled for the models your Strands agent will use
+- **Node.js 20+** — for the official [AgentCore CLI](https://github.com/aws/agentcore-cli) (`npm install -g @aws/agentcore`)
+- **uv** (recommended for Python agents) or `python3 -m venv`
+- **AWS credentials** + Bedrock model access in your region (default **`eu-west-1`**, aligned with this monorepo)
 
-## 1. Create a virtual environment
+> **Note:** The old Python `bedrock-agentcore-starter-toolkit` is superseded by **`@aws/agentcore`**. Uninstall it if both are present (`pip uninstall bedrock-agentcore-starter-toolkit`).
+
+## 1. Python environment
 
 ```bash
 cd packages/agent-core
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-## 2. Install dependencies
-
-```bash
 pip install -r requirements.txt
-agentcore --help
 ```
 
-This installs:
-- `bedrock-agentcore`
-- `strands-agents`
-- `bedrock-agentcore-starter-toolkit`
-
-## 3. Configure the runtime
+Copy env template and set values as needed:
 
 ```bash
-cd packages/agent-core
-source .venv/bin/activate
-agentcore configure --entrypoint src/agent.py
+cp .env.example .env.local
+# export $(grep -v '^#' .env.local | xargs)   # optional: load into shell
 ```
 
-The CLI creates **`.bedrock_agentcore.yaml`** for local dev and deploy.
+## 2. AgentCore CLI (deploy path)
 
-## 4. Run locally
-
-Preferred (toolkit runtime emulator):
+Install globally (once):
 
 ```bash
-cd packages/agent-core
-source .venv/bin/activate
-agentcore dev
+npm install -g @aws/agentcore
+agentcore --version
 ```
 
-In another terminal:
+**Greenfield** (AWS-recommended project layout):
 
 ```bash
-cd packages/agent-core
-source .venv/bin/activate
-agentcore invoke --dev '{"prompt": "Hello!"}'
+agentcore create --name my-agent --framework Strands --model-provider Bedrock --memory none
+# Copy or point app/MyAgent/main.py at this repo's src/agent.py patterns
 ```
 
-Quick direct run from repo root:
+**This monorepo embed** — agent code lives in `src/`; wire deploy by creating an AgentCore project here or pointing your CLI project entrypoint at `src/agent.py`.
+
+Common CLI loop:
 
 ```bash
-pnpm agent:python
+agentcore dev          # local server + inspector
+agentcore deploy       # CDK-backed deploy to AgentCore Runtime
+agentcore invoke --prompt "Hello"
+agentcore logs
 ```
 
-`pnpm agent:python` uses `.venv/bin/python` if present, otherwise falls back to `python3`.
-
-## 5. Deploy
+Add capabilities after scaffold:
 
 ```bash
-cd packages/agent-core
-source .venv/bin/activate
+agentcore add memory   # STM; add --strategies for LTM
+agentcore add gateway  # MCP / OpenAPI / Lambda targets (managed connectivity)
 agentcore deploy
 ```
 
-Save the runtime ARN from the output, then invoke with:
+## 3. Run locally (without full CLI project)
 
-```bash
-agentcore invoke '{"prompt": "tell me a joke"}'
-```
-
-## 6. Clean up
+Direct entrypoint (BedrockAgentCoreApp local mode):
 
 ```bash
 cd packages/agent-core
 source .venv/bin/activate
-agentcore destroy
+python3 src/agent.py
 ```
 
-## Monorepo notes
+With MCP (example — AWS Documentation MCP server):
 
-- This folder is **Python-first**, not a pnpm workspace package.
-- SST (`sst.config.ts`) is unchanged; AgentCore deploy is separate until you wire IAM/outputs in `infra/`.
-- Do not commit secrets inside `.bedrock_agentcore.yaml` or shell history.
+```bash
+export MCP_SERVER_COMMAND=uvx
+export MCP_SERVER_ARGS='awslabs.aws-documentation-mcp-server@latest'
+python3 src/agent.py
+```
+
+With AgentCore Memory (after `agentcore add memory` + deploy, copy memory id):
+
+```bash
+export AGENTCORE_MEMORY_ID=your-memory-id
+export AGENTCORE_MEMORY_BATCH_SIZE=1   # STM: flush each turn (default)
+python3 src/agent.py
+```
+
+Invoke payload shape:
+
+```json
+{
+  "prompt": "What is AppSync?",
+  "session_id": "session-123",
+  "actor_id": "user-456"
+}
+```
+
+## 4. Project layout
+
+```
+packages/agent-core/
+├── src/
+│   ├── agent.py       # BedrockAgentCoreApp entrypoint
+│   ├── config.py      # env-driven settings
+│   ├── memory.py      # AgentCoreMemorySessionManager (STM / optional LTM)
+│   └── mcp_tools.py   # Strands MCPClient (stdio)
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+
+## 5. Memory modes
+
+| Mode | Config | Use |
+|------|--------|-----|
+| **None** | omit `AGENTCORE_MEMORY_ID` | Stateless agent |
+| **Short-term (STM)** | memory id, `AGENTCORE_MEMORY_LTM=false` | Conversation persistence per session |
+| **Long-term (LTM)** | memory id + LTM strategies on resource + `AGENTCORE_MEMORY_LTM=true` | Preferences, facts, summaries across sessions |
+
+Use `AGENTCORE_MEMORY_BATCH_SIZE=1` for lowest latency (each turn persisted immediately). Increase (2–100) to batch API calls; always use the session manager context manager so buffers flush.
+
+## 6. MCP options
+
+| Approach | When |
+|----------|------|
+| **Strands `MCPClient`** (this repo) | Local/dev or runtime with stdio MCP server (`mcp_tools.py`) |
+| **AgentCore Gateway** | Production: `agentcore add gateway` + MCP target — governed, no stdio in runtime |
+
+## 7. Monorepo integration
+
+- SST (`sst.config.ts`) is unchanged; AgentCore deploy is separate until you wire runtime ARN / IAM in `infra/`.
+- Lambdas in `packages/functions/` can invoke the deployed runtime from your app.
+- Cursor rules: **Python AgentCore** + **AgentCore Strands MCP & Memory**.
+
+## References
+
+- [AgentCore CLI](https://github.com/aws/agentcore-cli)
+- [Get started with AgentCore CLI](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html)
+- [Strands + AgentCore Memory](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/strands-sdk-memory.html)
+- [Strands MCP tools](https://github.com/strands-agents/sdk-python)

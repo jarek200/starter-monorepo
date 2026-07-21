@@ -6,7 +6,7 @@ import { type ZodError, type ZodIssue, z } from 'zod';
  */
 export const envSchema = z.object({
   // AWS Configuration
-  AWS_REGION: z.string().default('us-east-1'),
+  AWS_REGION: z.string().default('eu-west-1'),
   VITE_AWS_REGION: z.string().optional(),
 
   // Cognito
@@ -66,7 +66,7 @@ export function getEnv(): Partial<Env> {
  */
 export const lambdaEnvSchema = z.object({
   TABLE_NAME: z.string(),
-  AWS_REGION: z.string().default('us-east-1'),
+  AWS_REGION: z.string().default('eu-west-1'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
 });
 

@@ -1,29 +1,81 @@
 ---
 description: >-
-  Python AgentCore assistant. Use when starting or extending Python Bedrock
-  agents (AgentCore runtime, Strands, Bedrock models) in this monorepo.
+  Python AgentCore + Strands agents in this monorepo. Use when creating,
+  deploying, or extending Bedrock AgentCore runtime agents under packages/agent-core.
+globs: packages/agent-core/**/*
 alwaysApply: false
 ---
 
-# Python AgentCore
+# Python AgentCore (Strands)
 
-## Intent
+## Defaults for this monorepo
 
-Most new work here should assume **Amazon Bedrock** for models and **Bedrock AgentCore Runtime** alongside the existing **SST** stack (`sst.config.ts`, `infra/`).
+- **Framework:** [Strands Agents](https://strandsagents.com) only (Python).
+- **Models:** Amazon Bedrock via AWS credentials (default model from AgentCore / Strands config).
+- **Region:** `eu-west-1` (match `packages/core/src/env.ts` and SST workload region).
+- **CLI:** Official [**AgentCore CLI**](https://github.com/aws/agentcore-cli) — `npm install -g @aws/agentcore` (not the legacy Python `bedrock-agentcore-starter-toolkit`).
+- **Deploy:** AgentCore Runtime via `agentcore deploy` (CDK under the hood). SST deploy is separate unless you wire runtime ARN in `infra/`.
 
 ## Where code lives
 
-- **`packages/agent-core/src/agent.py`** — Python Strands agent behind `BedrockAgentCoreApp` (official Python starter pattern). Use the **starter toolkit CLI** from `packages/agent-core/`: `agentcore configure --entrypoint src/agent.py`, `agentcore dev`, `agentcore deploy`.
-- **`packages/functions/`** — Lambdas; call Bedrock or the deployed agent runtime when you integrate.
-- **`infra/`** — SST resources; wire IAM only if you unify AgentCore with this stack (toolkit deploy is separate by default).
+| Path | Purpose |
+|------|---------|
+| `packages/agent-core/src/agent.py` | `BedrockAgentCoreApp` entrypoint |
+| `packages/agent-core/src/config.py` | Env: region, memory, MCP, system prompt |
+| `packages/agent-core/src/memory.py` | `AgentCoreMemorySessionManager` (STM / optional LTM) |
+| `packages/agent-core/src/mcp_tools.py` | Strands `MCPClient` (stdio MCP server) |
+| `packages/functions/` | Lambdas that call Bedrock or invoke AgentCore runtime |
+| `infra/` | SST — add IAM/runtime wiring only when integrating with the web stack |
+
+## AgentCore CLI workflow
+
+```bash
+npm install -g @aws/agentcore
+
+# New standalone project (AWS-recommended layout)
+agentcore create --name MyAgent --framework Strands --model-provider Bedrock --memory none
+
+# Or extend this monorepo's src/ and deploy from an AgentCore project rooted here
+cd packages/agent-core
+agentcore dev
+agentcore deploy
+agentcore invoke --prompt "Hello"
+agentcore add memory      # then agentcore deploy
+agentcore add gateway     # MCP/OpenAPI targets for production tool access
+agentcore logs
+agentcore traces list
+```
+
+Project layout from `agentcore create`:
+
+```
+agentcore/agentcore.json   # resources (agents, memory, gateways, …)
+agentcore/aws-targets.json
+app/<AgentName>/main.py    # entrypoint + pyproject.toml
+```
 
 ## Conventions
 
-- Prefer **IAM roles** and short-lived credentials — no long-lived keys in committed env files.
-- Create a local venv in `packages/agent-core/.venv` and install from `requirements.txt`.
-- Install CLI in that venv or globally: `pip install bedrock-agentcore-starter-toolkit`.
+- **Credentials:** IAM roles / SSO — no long-lived keys in git. Use `agentcore/` `.env.local` (gitignored) for local API keys only.
+- **Python env:** `packages/agent-core/.venv` + `pip install -r requirements.txt` (`bedrock-agentcore[strands-agents]`, `mcp`).
+- **Entrypoint contract:** `invoke(payload, context)` — read `prompt`, optional `session_id` / `actor_id` (or from `context.session_id` / `context.user_id` on runtime).
+- **Do not** add TypeScript/LangGraph agents in this folder — keep Python Strands consistent.
 
-## Quick start
+## When to use Harness vs code
 
-- **Run Python entry directly:** `pnpm agent:python` from repo root.
-- **Toolkit-local (recommended before deploy):** `cd packages/agent-core && agentcore dev`, then `agentcore invoke --dev '{"prompt":"..."}'`.
+| Approach | Use |
+|----------|-----|
+| **Harness** (`agentcore add harness`) | Declarative agent (model + tools + memory) without custom loop |
+| **Code (this repo)** | Custom Strands logic, MCP wiring, memory session manager |
+
+Start with code here; move to harness only if you do not need custom orchestration.
+
+## Related rule
+
+For MCP wiring, memory batching, and LTM retrieval config, see **AgentCore Strands MCP & Memory** (`.cursor/rules/agentcore-strands-mcp-memory.mdc`).
+
+## References
+
+- [AgentCore CLI README](https://github.com/aws/agentcore-cli)
+- [Get started CLI](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html)
+- [Strands SDK memory integration](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/strands-sdk-memory.html)

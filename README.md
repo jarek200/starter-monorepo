@@ -10,7 +10,7 @@ A modern, production-ready platform template for building full-stack serverless 
 - **Authentication**: AWS Cognito User Pools
 - **Infrastructure**: SST v4 with Pulumi
 - **Monorepo**: pnpm workspaces + Turborepo (task caching)
-- **Agents (optional)**: `packages/agent-core` — Python + Strands + **Bedrock AgentCore** starter toolkit (`pnpm agent:python`, then `agentcore` CLI — see `packages/agent-core/README.md`) + Cursor rule **Python AgentCore**
+- **Agents (optional)**: `packages/agent-core` — Python **Strands** + **Bedrock AgentCore** (MCP + Memory) — see `packages/agent-core/README.md` and Cursor rules **Python AgentCore** / **AgentCore Strands MCP & Memory**
 
 ## Architecture overview
 
@@ -19,22 +19,32 @@ pnpm workspace (root)
 ├── apps/web          SvelteKit web app — landing, login, dashboard (SST SvelteKit component)
 ├── packages/         Shared code (core, graphql, functions, agent-core)
 ├── infra/            SST infrastructure modules (AppSync, Cognito, DynamoDB)
-├── platform/webiny   Optional Webiny CMS — Yarn toolchain; not part of pnpm (see platform/webiny/README.md)
 └── sst.config.ts     SST v4 config — stage-aware, multi-account
 ```
 
 ## Environments
 
-Three first-class stages, each targeting an isolated AWS account:
+### Local dev (hot reload)
 
-| Stage   | Purpose                     | AWS account  | Removal policy |
-|---------|-----------------------------|--------------|----------------|
-| `dev`   | Daily development work      | dev account  | `remove`       |
-| `stage` | Pre-production validation   | stage account| `remove`       |
-| `prod`  | Live production             | prod account | `retain`       |
+**`pnpm dev`** runs [SST dev mode](https://sst.dev/docs/reference/cli/#dev) — live Lambda linking and hot reload. This uses a **personal stage** (your OS username by default), **not** the shared `int` / `stage` / `prod` deploy targets.
 
-Any other stage name (e.g. `jarek`, `feature-x`) falls back to the `dev` AWS profile and
-uses the `remove` policy — safe for short-lived personal stacks.
+Map the `dev` profile in `sst.config.ts` (`STAGE_PROFILES.dev`) to the AWS account you use for local work — often the same account as `int`, but a **different stage name** so personal stacks never overwrite shared environments.
+
+```bash
+pnpm dev   # SST dev: hot reload, env vars injected automatically
+```
+
+### Shared deploy stages (max 3 AWS accounts)
+
+Three **deploy** stages — each maps to its own AWS account (provisioned via admin factory, CI labels, or `pnpm sst:deploy <stage>`):
+
+| Stage   | Purpose                   | AWS account  | Removal policy |
+|---------|---------------------------|--------------|----------------|
+| `int`   | Integration / shared demo | int account  | `remove`       |
+| `stage` | Pre-production validation | stage account| `remove`       |
+| `prod`  | Live production           | prod account | `retain`       |
+
+Personal stages from `pnpm dev` fall back to the **`dev`** profile and **`dev`** resource config — separate from `int`, `stage`, and `prod`.
 
 ## Prerequisites
 
@@ -59,25 +69,31 @@ with SSO. Then configure `~/.aws/config`:
 ```ini
 [sso-session acme]
 sso_start_url  = https://acme.awsapps.com/start
-sso_region     = us-east-1
+sso_region     = eu-west-1
 
 [profile acme-dev]
 sso_session    = acme
 sso_account_id = 111111111111
 sso_role_name  = AdministratorAccess
-region         = us-east-1
+region         = eu-west-1
+
+[profile acme-int]
+sso_session    = acme
+sso_account_id = 111111111111
+sso_role_name  = AdministratorAccess
+region         = eu-west-1
 
 [profile acme-stage]
 sso_session    = acme
 sso_account_id = 222222222222
 sso_role_name  = AdministratorAccess
-region         = us-east-1
+region         = eu-west-1
 
 [profile acme-prod]
 sso_session    = acme
 sso_account_id = 333333333333
 sso_role_name  = AdministratorAccess
-region         = us-east-1
+region         = eu-west-1
 ```
 
 Log in:
@@ -90,38 +106,105 @@ pnpm sso
 Rename the profile keys in `sst.config.ts` (`STAGE_PROFILES` map at the top) to match your
 actual profile names.
 
-### 3. Start development
+### 3. Start local development (hot reload)
 
 ```bash
-pnpm dev   # SST dev multiplexer: deploys infra + starts SvelteKit with hot reload
+pnpm dev   # SST dev mode: live linking + hot reload (personal stage, not int/stage/prod)
 ```
 
-`pnpm dev` automatically injects environment variables — no `.env` file needed.
+`pnpm dev` automatically injects environment variables — no `.env` file needed. This is separate from `pnpm sst:deploy int` and the CI deploy labels.
 
-### 4. Deploy per environment
+### 4. Deploy to shared environments
+
+Root scripts (pass the stage name as an argument):
+
+| Script | Example | Purpose |
+|--------|---------|---------|
+| `pnpm dev` | `pnpm dev` | Local hot reload (personal stage) |
+| `pnpm sst:deploy` | `pnpm sst:deploy int` | Deploy to int, stage, prod, or dev |
+| `pnpm sst:remove` | `pnpm sst:remove int` | Tear down a stage stack |
+| `pnpm verify` | `pnpm verify` | Codegen, lint, typecheck, test, build |
+| `pnpm sso` | `pnpm sso` | AWS SSO login |
 
 ```bash
-pnpm deploy:dev    # deploy to dev account
-pnpm deploy:stage  # deploy to stage account
-pnpm deploy:prod   # deploy to prod account
+pnpm sst:deploy int
+pnpm sst:deploy stage
+pnpm sst:deploy prod
 ```
 
-Or with the SST CLI directly:
+## Rename guide
+
+After **Use this template** (or when the Admin factory has not run rename yet), set project-specific names before your first deploy.
+
+**Automated (recommended):**
 
 ```bash
-pnpm exec sst deploy --stage dev
-pnpm exec sst deploy --stage stage
-pnpm exec sst deploy --stage prod
+./scripts/rename-project.sh --scope mycompany --app my-app
+# optional: --sso mycompany  (defaults to scope)
+pnpm install
+pnpm verify
+```
+
+This replaces `@sst-monorepo` → `@mycompany`, `sst-monorepo-starter` → `my-app`, and SSO placeholder `acme` → `mycompany` in `package.json` and README.
+
+**Admin factory:** after `CreateRepo`, provisioning runs the same replacements with `--scope "$githubOrg" --app "$slug"`.
+
+### Manual reference
+
+| Find | Replace with | Files |
+|------|--------------|-------|
+| `@sst-monorepo/core` | `@mycompany/core` | `packages/core/package.json`, imports, `vitest.config.ts` |
+| `@sst-monorepo/graphql` | `@mycompany/graphql` | `packages/graphql/package.json`, imports |
+| `@sst-monorepo/functions` | `@mycompany/functions` | `packages/functions/package.json` |
+| `@sst-monorepo/web` | `@mycompany/web` | `apps/web/package.json`, `.lintstagedrc.json` |
+| `sst-monorepo-starter` | `my-app` | Root `package.json`, `sst.config.ts` (`name` field) |
+
+Search the repo for `@sst-monorepo` and `sst-monorepo-starter` to catch any remaining references.
+
+### 2. AWS SSO and profiles
+
+In `~/.aws/config`, replace the `acme` SSO session and `acme-dev` / `acme-int` / `acme-stage` / `acme-prod` profile names with yours. The three deploy accounts are **int**, **stage**, and **prod** (plus optional `dev` profile for local hot reload).
+
+Then align:
+
+- `sst.config.ts` — `STAGE_PROFILES` map (`dev` for local hot reload; `int`, `stage`, `prod` for deploys)
+- Root `package.json` — `sso` script (`aws sso login --sso-session=…`)
+
+### 3. GitHub Environments and IAM
+
+For each GitHub Environment (`int`, `stage`, `prod`):
+
+- Secret `AWS_ROLE_ARN` — OIDC role in that AWS account
+- Optional: `DNS_ROLE_ARN`, vars `APP_URL`, `APPS_HOSTED_ZONE_ID`
+
+Trust policy subject: `repo:<org>/<repo>:environment:<env-name>`.
+
+### 4. Deploy labels
+
+Bootstrap labels in your new repo (requires [GitHub CLI](https://cli.github.com/)):
+
+```bash
+./scripts/bootstrap-github-labels.sh owner/my-app
+```
+
+Or create them manually — see [Create the PR labels](#create-the-pr-labels).
+
+### 5. Verify
+
+```bash
+pnpm install
+pnpm verify
 ```
 
 ## New project checklist
 
-After creating a repository from this template, do these before shipping:
+After renaming, before shipping:
 
-- Rename project metadata in root and app `package.json` files.
+- Run `./scripts/rename-project.sh --scope … --app …` if placeholders remain (Admin factory runs this automatically).
+
 - Update AWS account IDs, profile names, and role ARNs in `sst.config.ts` and GitHub Environments.
 - If you use delegated app domains, set `APP_URL`, `APPS_HOSTED_ZONE_ID`, and `DNS_ROLE_ARN` in each GitHub Environment.
-- Create the required PR labels (`deploy:dev`, `deploy:stage`, `deploy:prod`).
+- Run `./scripts/bootstrap-github-labels.sh owner/repo` (or create deploy labels manually).
 - Enable **branch protection rules** on `main` (see [Branch protection](#branch-protection) below).
 - Review defaults in `infra/` (domain names, auth settings, table names, retention policy).
 - Run `pnpm verify` and make sure CI passes before first deployment.
@@ -180,47 +263,50 @@ If you have existing stacks deployed under SST v3, migrate them before deploying
 
 ```bash
 # 1. Review what will change
-pnpm exec sst diff --stage dev
+pnpm exec sst diff --stage int
 
 # 2. Migrate state (run once per stage, do NOT use --target)
-pnpm exec sst refresh --stage dev
+pnpm exec sst refresh --stage int
 pnpm exec sst refresh --stage stage
+pnpm exec sst refresh --stage prod
 # For stages that only ever ran under sst dev:
-pnpm exec sst refresh --stage dev --dev
+pnpm exec sst refresh --stage int --dev
 
 # 3. Deploy as normal
-pnpm deploy:dev
+pnpm sst:deploy int
 ```
 
 ## GitHub Actions and label-driven deployment
 
-CI runs automatically on every PR and push to `main`/`develop`. Jobs: **lint**, **typecheck** (with codegen drift check), **test**, and **build** — build only runs when lint and tests pass.
+CI runs automatically on every PR and push to `main`. Jobs: **lint**, **typecheck** (with codegen drift check), **test**, and **build** — build only runs when lint and tests pass.
 
 Deployment is triggered by **adding labels to an open PR**:
 
 ```
 Open PR
-  └─ add label "deploy:dev"   → deploys SST to dev account
+  └─ add label "deploy:int"   → deploys SST to int account
        └─ passes → add label "deploy:stage" → deploys to stage account
-            └─ passes → add label "deploy:prod"  → deploys to prod account
+            └─ passes → add label "deploy:prod" → deploys to prod account
                  └─ passes → merge PR
 ```
 
-The `deploy:stage` job checks that `deploy:dev` is present on the PR before running.
-The `deploy:prod` job checks that both `deploy:dev` and `deploy:stage` are present.
+The `deploy:stage` gate requires `deploy:int` on the PR.
+The `deploy:prod` gate requires both `deploy:int` and `deploy:stage`.
 The `prod` GitHub Environment additionally requires a human reviewer to approve.
+After a successful prod deploy, the workflow **automatically merges the PR into `main`**
+(if the PR targets `main`; PRs targeting other branches are left open).
 
 ### One-time GitHub setup
 
-1. Create three GitHub Environments: `dev`, `stage`, `prod`
+1. Create three GitHub Environments: `int`, `stage`, `prod`
    - On `prod`: enable **Required reviewers**
 2. Add `AWS_ROLE_ARN` secret to each Environment:
-   - `dev` → `arn:aws:iam::111111111111:role/GHActions-Dev`
-   - `stage` → `arn:aws:iam::222222222222:role/GHActions-Stage`
-   - `prod` → `arn:aws:iam::333333333333:role/GHActions-Prod`
+   - `int` → `arn:aws:iam::111111111111:role/GitHubActions-int`
+   - `stage` → `arn:aws:iam::222222222222:role/GitHubActions-stage`
+   - `prod` → `arn:aws:iam::333333333333:role/GitHubActions-prod`
 3. If you want automated custom domains, also add:
    - Variable `APP_URL`
-     - `dev` → deployed app URL for that environment
+     - `int` → deployed app URL for that environment
      - `stage` → deployed app URL for that environment
      - `prod` → deployed app URL for that environment
    - Variable `APPS_HOSTED_ZONE_ID`
@@ -237,13 +323,22 @@ No long-lived AWS credentials are stored in GitHub secrets.
 
 ### Create the PR labels
 
-In your GitHub repo, create these labels (Settings → Labels):
+Bootstrap all deploy labels (including failure labels used by CI):
 
-| Label           | Colour suggestion | Purpose                   |
-|-----------------|-------------------|---------------------------|
-| `deploy:dev`    | `#0075ca`         | Trigger dev deployment    |
-| `deploy:stage`  | `#e4e669`         | Trigger stage deployment  |
-| `deploy:prod`   | `#d93f0b`         | Trigger prod deployment   |
+```bash
+./scripts/bootstrap-github-labels.sh owner/repo
+```
+
+Or create them manually in GitHub (Settings → Labels):
+
+| Label                | Colour suggestion | Purpose                   |
+|----------------------|-------------------|---------------------------|
+| `deploy:int`         | `#0075ca`         | Trigger int deployment    |
+| `deploy:stage`       | `#e4e669`         | Trigger stage deployment  |
+| `deploy:prod`        | `#d93f0b`         | Trigger prod deployment   |
+| `deploy-failed:int`  | `#d73a4a`         | Int deploy failed         |
+| `deploy-failed:stage`| `#d73a4a`        | Stage deploy failed       |
+| `deploy-failed:prod` | `#d73a4a`         | Prod deploy failed        |
 
 ### Branch protection
 
@@ -265,8 +360,8 @@ This prevents direct pushes to `main` and ensures every change goes through CI a
 After updating `packages/graphql/schema.graphql`:
 
 ```bash
-pnpm codegen         # one-time
-pnpm codegen:watch   # watch mode during development
+pnpm codegen
+pnpm --filter @sst-monorepo/graphql codegen:watch   # watch mode
 ```
 
 Generated types are imported as:
@@ -279,7 +374,7 @@ import type { User, UpdateUserInput } from '@sst-monorepo/graphql';
 
 `pnpm dev` (SST dev mode) injects all variables automatically — no `.env` needed.
 
-For local-only frontend development (`pnpm dev:local`), set `VITE_*` variables the same way as in
+For local-only frontend development, run `pnpm --filter @sst-monorepo/web dev` and set `VITE_*` variables the same way as in
 `sst.config.ts`’s `sharedEnv` (or use `pnpm dev` so SST injects them).
 
 ## Database schema (DynamoDB — single-table design)

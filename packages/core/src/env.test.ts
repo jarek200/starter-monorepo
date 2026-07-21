@@ -15,11 +15,11 @@ describe('env', () => {
   describe('validateEnv', () => {
     it('should validate valid environment variables', () => {
       process.env.NODE_ENV = 'development';
-      process.env.AWS_REGION = 'us-east-1';
+      process.env.AWS_REGION = 'eu-west-1';
 
       const result = validateEnv();
       expect(result.NODE_ENV).toBe('development');
-      expect(result.AWS_REGION).toBe('us-east-1');
+      expect(result.AWS_REGION).toBe('eu-west-1');
     });
 
     it('should throw error for invalid NODE_ENV', () => {

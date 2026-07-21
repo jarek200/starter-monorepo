@@ -2,6 +2,9 @@
 __pycache__
 .pytest_cache
 .bedrock_agentcore*
+.env.local
+agentcore/.env.local
+agentcore/.cli/
 node_modules
 dist
 .turbo
