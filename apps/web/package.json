@@ -37,7 +37,7 @@
   "dependencies": {
     "@aws-amplify/api-graphql": "^4.8.8",
     "@sst-monorepo/graphql": "workspace:*",
-    "aws-amplify": "^6.18.0",
+    "aws-amplify": "^6.19.0",
     "bits-ui": "^2.18.1"
   }
 }
