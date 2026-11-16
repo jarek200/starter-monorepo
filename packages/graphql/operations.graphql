@@ -1,0 +1,22 @@
+fragment UserFields on User {
+  userId
+  username
+  email
+  name
+  bio
+  avatar
+  createdAt
+  updatedAt
+}
+
+query GetMyProfile {
+  getMyProfile {
+    ...UserFields
+  }
+}
+
+mutation UpdateUserProfile($input: UpdateUserInput!) {
+  updateUserProfile(input: $input) {
+    ...UserFields
+  }
+}

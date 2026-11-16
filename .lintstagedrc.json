@@ -1,0 +1,11 @@
+{
+  "apps/web/**/*.{js,jsx,ts,tsx,svelte}": [
+    "pnpm --filter @sst-monorepo/web exec biome check --write"
+  ],
+  "apps/web/**/*.json": ["pnpm --filter @sst-monorepo/web exec biome format --write"],
+  "packages/**/*.{js,jsx,ts,tsx}": ["pnpm exec biome check --write --no-errors-on-unmatched"],
+  "infra/**/*.ts": ["pnpm exec biome check --write --no-errors-on-unmatched"],
+  "sst.config.ts": ["pnpm exec biome check --write --no-errors-on-unmatched"],
+  "vitest.config.ts": ["pnpm exec biome check --write --no-errors-on-unmatched"],
+  "*.json": ["pnpm exec biome format --write"]
+}

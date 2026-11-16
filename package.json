@@ -1,0 +1,48 @@
+{
+  "name": "sst-monorepo-starter",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm sst dev --mode basic",
+    "build": "turbo run build",
+    "lint": "pnpm exec biome check .",
+    "typecheck": "turbo run typecheck",
+    "test": "vitest run",
+    "codegen": "turbo run codegen",
+    "verify": "pnpm codegen && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "sst:deploy": "pnpm exec sst deploy --stage",
+    "sst:remove": "pnpm exec sst remove --stage",
+    "sso": "aws sso login --sso-session=acme",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "sst",
+    "svelte",
+    "sveltekit",
+    "aws",
+    "appsync",
+    "graphql",
+    "dynamodb",
+    "cognito",
+    "turborepo",
+    "monorepo",
+    "starter",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "SST monorepo starter — SvelteKit web app (landing, login, dashboard), AppSync, Cognito",
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@pulumi/aws": "^7.55.0",
+    "@pulumi/pulumi": "^3.276.0",
+    "@types/node": "^24.19.2",
+    "@vitest/coverage-v8": "^4.1.12",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "sst": "npm:@sst-community/sst@^4.25.0",
+    "turbo": "^2.11.11",
+    "vitest": "^4.1.12"
+  },
+  "packageManager": "pnpm@10.20.0"
+}
