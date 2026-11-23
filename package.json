@@ -35,14 +35,14 @@
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",
     "@pulumi/aws": "^7.55.0",
-    "@pulumi/pulumi": "^3.276.0",
-    "@types/node": "^24.19.2",
-    "@vitest/coverage-v8": "^4.1.12",
+    "@pulumi/pulumi": "^3.277.0",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.1",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.6.1",
     "sst": "npm:@sst-community/sst@^4.25.0",
-    "turbo": "^2.11.11",
-    "vitest": "^4.1.12"
+    "turbo": "^2.11.13",
+    "vitest": "^5.1.1"
   },
   "packageManager": "pnpm@10.20.0"
 }
